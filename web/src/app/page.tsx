@@ -155,7 +155,7 @@ export default function Home() {
             value={quickLogText}
             onChange={(e) => setQuickLogText(e.target.value)}
             placeholder="What's happening? (e.g., 'took vitamins', 'feeling stressed', 'went for a run')"
-            className="w-full border rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full border rounded-lg p-3 text-sm text-gray-900 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={3}
             disabled={isSubmitting}
           />
