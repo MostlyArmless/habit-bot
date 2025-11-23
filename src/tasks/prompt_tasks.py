@@ -51,38 +51,45 @@ def schedule_pending_prompts() -> dict:
         db.close()
 
 
+def run_async(coro):
+    """Run an async coroutine in a sync context."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 @app.task(bind=True, max_retries=3, default_retry_delay=30)
 def send_prompt_notification(self, prompt_id: int) -> dict:
-    """Send a push notification for a prompt.
-
-    This is a placeholder - actual implementation will integrate
-    with Firebase Cloud Messaging for Android notifications.
+    """Send a push notification for a prompt via ntfy.
 
     Args:
         prompt_id: ID of the prompt to notify about
     """
+    from src.services.notifications import NotificationService
+
     db = SessionLocal()
     try:
         prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
         if not prompt:
             return {"success": False, "error": "Prompt not found"}
 
-        user = db.query(User).filter(User.id == prompt.user_id).first()
-        if not user:
-            return {"success": False, "error": "User not found"}
+        # Send ntfy notification
+        notification_service = NotificationService()
+        result = run_async(notification_service.send_prompt_notification(prompt_id))
 
-        # TODO: Integrate with Firebase Cloud Messaging
-        # For now, just log the notification
-        logger.info(
-            f"Would send notification to user {user.id} for prompt {prompt.id}: "
-            f"{len(prompt.questions)} questions in categories {prompt.categories}"
-        )
+        if result["success"]:
+            logger.info(
+                f"Sent ntfy notification for prompt {prompt.id}: "
+                f"{len(prompt.questions)} questions in categories {prompt.categories}"
+            )
+        else:
+            logger.warning(f"Failed to send ntfy notification: {result.get('error')}")
 
-        return {
-            "success": True,
-            "prompt_id": prompt_id,
-            "user_id": user.id,
-        }
+        return result
 
     except Exception as e:
         logger.error(f"Error sending notification for prompt {prompt_id}: {e}")

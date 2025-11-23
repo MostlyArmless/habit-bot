@@ -4,7 +4,7 @@ A personal health tracking system using Ecological Momentary Assessment (EMA) to
 
 ## Current Status
 
-### Completed (Backend Ready for Android Development)
+### Completed (MVP for Validation)
 - [x] Docker Compose setup (PostgreSQL, Redis, Celery worker/beat)
 - [x] SQLAlchemy models for all 11 entities
 - [x] Alembic database migrations
@@ -13,13 +13,14 @@ A personal health tracking system using Ecological Momentary Assessment (EMA) to
 - [x] LLM integration service (Ollama with gemma3:12b/gemma3:1b)
 - [x] Celery background task infrastructure
 - [x] Prompt scheduling algorithm
-- [x] Test suite with 44 passing tests (including LLM integration tests)
+- [x] ntfy push notification integration
+- [x] Next.js PWA for questionnaire responses
+- [x] Test suite with 49 passing tests
 
 ### Remaining (Phase 2+)
 - [ ] Google Calendar integration
 - [ ] Garmin Connect integration
 - [ ] Analysis engine (correlations, insights)
-- [ ] Android app
 - [ ] Promptfoo LLM evaluation setup
 
 ## Prerequisites
@@ -28,15 +29,26 @@ A personal health tracking system using Ecological Momentary Assessment (EMA) to
 - Docker and Docker Compose
 - uv (Python package manager)
 - Ollama with gemma3 models (for LLM features)
+- Node.js 20+ (for PWA)
+
+## ntfy Notification Topic
+
+The system uses ntfy.sh for push notifications. Subscribe to the topic to receive check-in reminders:
+
+**Topic:** `your-unique-topic-guid`
+
+Subscribe at: https://ntfy.sh/your-unique-topic-guid
 
 ## Quick Start
 
 ```bash
 # 1. Install dependencies
 uv sync
+cd web && npm install && cd ..
 
-# 2. Copy environment file
+# 2. Copy environment files
 cp .env.example .env
+cp web/.env.example web/.env.local
 
 # 3. Start services
 docker compose up -d db redis
@@ -44,8 +56,27 @@ docker compose up -d db redis
 # 4. Apply migrations
 uv run alembic upgrade head
 
-# 5. Run the server
+# 5. Run the backend
 uv run uvicorn src.main:app --reload --host 127.0.0.1 --port 8001
+
+# 6. Run the PWA (in another terminal)
+cd web && npm run dev
+```
+
+### Running with Celery (for notifications)
+
+```bash
+# Terminal 1: Backend API
+uv run uvicorn src.main:app --reload --port 8001
+
+# Terminal 2: Celery worker
+uv run celery -A src.celery_app worker --loglevel=info
+
+# Terminal 3: Celery beat (scheduler)
+uv run celery -A src.celery_app beat --loglevel=info
+
+# Terminal 4: PWA
+cd web && npm run dev
 ```
 
 ## Docker Services
@@ -58,6 +89,7 @@ uv run uvicorn src.main:app --reload --host 127.0.0.1 --port 8001
 | api | 8001 | FastAPI server (Docker) |
 | celery-worker | - | Celery worker for background tasks |
 | celery-beat | - | Celery beat scheduler |
+| pwa | 3000 | Next.js PWA (use --profile pwa) |
 
 ## Project Setup (Detailed)
 

@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gemma3:12b")
     llm_model_fast: str = Field(default="gemma3:1b")
 
+    # Notifications (ntfy)
+    ntfy_server: str = Field(default="https://ntfy.sh")
+    ntfy_topic: str = Field(default="your-unique-topic-guid")
+
+    # PWA
+    pwa_base_url: str = Field(default="http://localhost:3000")
+
     @property
     def is_testing(self) -> bool:
         """Check if running in test environment."""

@@ -80,6 +80,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-habit_user}:${POSTGRES_PASSWORD:-habit_password}@db:5432/${POSTGRES_DB:-habit_bot}
       - REDIS_URL=redis://redis:6379/0
+      - NTFY_TOPIC=${NTFY_TOPIC:-your-unique-topic-guid}
+      - PWA_BASE_URL=${PWA_BASE_URL:-http://localhost:3000}
       - ENVIRONMENT=development
     volumes:
       - ./src:/app/src
@@ -89,6 +91,20 @@ services:
       redis:
         condition: service_healthy
     command: celery -A src.celery_app beat --loglevel=info
+
+  pwa:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: habit-bot-pwa
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    profiles:
+      - pwa
 
   db-test:
     image: postgres:16-alpine
