@@ -28,7 +28,8 @@ class Settings(BaseSettings):
 
     # LLM
     ollama_base_url: str = Field(default="http://localhost:11434")
-    llm_model: str = Field(default="gemma2:32b")
+    llm_model: str = Field(default="gemma3:12b")
+    llm_model_fast: str = Field(default="gemma3:1b")
 
     @property
     def is_testing(self) -> bool:

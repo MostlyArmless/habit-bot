@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from src.api import (
     categories_router,
     health_router,
+    llm_router,
     prompts_router,
     responses_router,
     users_router,
@@ -38,6 +39,7 @@ app.include_router(users_router)
 app.include_router(categories_router)
 app.include_router(prompts_router)
 app.include_router(responses_router)
+app.include_router(llm_router)
 
 
 @app.get("/")
