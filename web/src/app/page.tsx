@@ -20,7 +20,9 @@ function getCategoryColor(category: string): string {
 }
 
 function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
+  // API returns UTC timestamps without 'Z' suffix, so append it
+  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+  const date = new Date(utcTimestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

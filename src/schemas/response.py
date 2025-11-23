@@ -33,6 +33,9 @@ class Response(ResponseBase):
     timestamp: datetime
     processing_status: str
     processing_attempts: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None = None
 
 
 class ResponseSummary(BaseModel):

@@ -1,13 +1,14 @@
 """Response model."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
+from src.models.mixins import SoftDeleteMixin, TimestampMixin
 
 
 class ProcessingStatus(str, Enum):
@@ -19,7 +20,7 @@ class ProcessingStatus(str, Enum):
     FAILED = "failed"
 
 
-class Response(Base):
+class Response(Base, TimestampMixin, SoftDeleteMixin):
     """Response model for storing user responses to prompts."""
 
     __tablename__ = "responses"
@@ -31,7 +32,10 @@ class Response(Base):
     response_text: Mapped[str] = mapped_column(Text, nullable=False)
     response_structured: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    timestamp: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    # Keep timestamp for backwards compatibility, but prefer created_at
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     processing_status: Mapped[str] = mapped_column(
         String(50), default=ProcessingStatus.PENDING.value
     )

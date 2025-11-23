@@ -40,12 +40,17 @@ def list_responses(
     prompt_id: int | None = None,
     category: str | None = None,
     processing_status: str | None = None,
+    include_deleted: bool = False,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
 ) -> list[ResponseModel]:
     """List responses with optional filtering."""
     query = db.query(ResponseModel)
+
+    # Filter out soft-deleted records by default
+    if not include_deleted:
+        query = query.filter(ResponseModel.deleted_at.is_(None))
 
     if user_id:
         query = query.filter(ResponseModel.user_id == user_id)
@@ -62,7 +67,12 @@ def list_responses(
 @router.get("/{response_id}", response_model=Response)
 def get_response(response_id: int, db: Session = Depends(get_db)) -> ResponseModel:
     """Get a response by ID."""
-    response = db.query(ResponseModel).filter(ResponseModel.id == response_id).first()
+    response = (
+        db.query(ResponseModel)
+        .filter(ResponseModel.id == response_id)
+        .filter(ResponseModel.deleted_at.is_(None))
+        .first()
+    )
     if not response:
         raise HTTPException(status_code=404, detail="Response not found")
     return response
@@ -76,6 +86,7 @@ def get_pending_responses(
     return (
         db.query(ResponseModel)
         .filter(ResponseModel.processing_status == ProcessingStatus.PENDING.value)
+        .filter(ResponseModel.deleted_at.is_(None))
         .order_by(ResponseModel.timestamp.asc())
         .limit(limit)
         .all()
@@ -84,9 +95,14 @@ def get_pending_responses(
 
 @router.delete("/{response_id}", status_code=204)
 def delete_response(response_id: int, db: Session = Depends(get_db)) -> None:
-    """Delete a response by ID."""
-    response = db.query(ResponseModel).filter(ResponseModel.id == response_id).first()
+    """Soft delete a response by ID."""
+    response = (
+        db.query(ResponseModel)
+        .filter(ResponseModel.id == response_id)
+        .filter(ResponseModel.deleted_at.is_(None))
+        .first()
+    )
     if not response:
         raise HTTPException(status_code=404, detail="Response not found")
-    db.delete(response)
+    response.soft_delete()
     db.commit()
