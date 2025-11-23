@@ -26,6 +26,7 @@ export interface Response {
   category: string;
   timestamp: string;
   processing_status: string;
+  processing_attempts?: number;
 }
 
 export interface ResponseCreate {
@@ -34,6 +35,14 @@ export interface ResponseCreate {
   question_text: string;
   response_text: string;
   category: string;
+}
+
+export interface QuickLogResponse {
+  response_id: number;
+  category: string;
+  summary: string;
+  structured_data: Record<string, unknown> | null;
+  processing_status: string;
 }
 
 class ApiClient {
@@ -86,6 +95,33 @@ class ApiClient {
 
   async healthCheck(): Promise<{ status: string }> {
     return this.fetch<{ status: string }>('/health');
+  }
+
+  async getResponses(params?: {
+    user_id?: number;
+    category?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Response[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.user_id) searchParams.set('user_id', params.user_id.toString());
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+    const query = searchParams.toString();
+    return this.fetch<Response[]>(`/api/v1/responses/${query ? `?${query}` : ''}`);
+  }
+
+  async quickLog(userId: number, text: string): Promise<QuickLogResponse> {
+    return this.fetch<QuickLogResponse>('/api/v1/quicklog/', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, text }),
+    });
+  }
+
+  async reprocessResponse(responseId: number): Promise<{ success: boolean }> {
+    return this.processResponseWithLLM(responseId);
   }
 }
 
