@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # PWA
     pwa_base_url: str = Field(default="http://localhost:3000")
 
+    # Garmin Connect
+    garmin_email: str | None = Field(default=None)
+    garmin_password: str | None = Field(default=None)
+
     @property
     def is_testing(self) -> bool:
         """Check if running in test environment."""

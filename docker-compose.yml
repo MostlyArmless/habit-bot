@@ -43,6 +43,8 @@ services:
       - LLM_MODEL=${LLM_MODEL:-gemma3:12b}
       - NTFY_TOPIC=${NTFY_TOPIC:-your-unique-topic-guid}
       - PWA_BASE_URL=${PWA_BASE_URL:-http://192.168.0.150:3000}
+      - GARMIN_EMAIL=${GARMIN_EMAIL:-}
+      - GARMIN_PASSWORD=${GARMIN_PASSWORD:-}
       - ENVIRONMENT=development
     ports:
       - "8001:8000"

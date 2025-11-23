@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import (
     categories_router,
+    garmin_router,
     health_router,
     llm_router,
     notifications_router,
@@ -54,6 +55,7 @@ app.include_router(responses_router)
 app.include_router(llm_router)
 app.include_router(notifications_router)
 app.include_router(quicklog_router)
+app.include_router(garmin_router)
 
 
 @app.get("/")
