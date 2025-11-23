@@ -4,28 +4,30 @@ A personal health tracking system using Ecological Momentary Assessment (EMA) to
 
 ## Current Status
 
-### Completed (Phase 1 - Core Infrastructure)
-- [x] Docker Compose setup (PostgreSQL, Redis)
+### Completed (Backend Ready for Android Development)
+- [x] Docker Compose setup (PostgreSQL, Redis, Celery worker/beat)
 - [x] SQLAlchemy models for all 11 entities
 - [x] Alembic database migrations
 - [x] FastAPI application with REST API endpoints
 - [x] Pydantic schemas for request/response validation
-- [x] Test suite with 28 passing tests
+- [x] LLM integration service (Ollama with gemma3:12b/gemma3:1b)
+- [x] Celery background task infrastructure
+- [x] Prompt scheduling algorithm
+- [x] Test suite with 44 passing tests (including LLM integration tests)
 
 ### Remaining (Phase 2+)
-- [ ] Celery background task infrastructure
-- [ ] LLM integration service (Ollama + Gemma)
-- [ ] Prompt scheduling algorithm
 - [ ] Google Calendar integration
 - [ ] Garmin Connect integration
 - [ ] Analysis engine (correlations, insights)
 - [ ] Android app
+- [ ] Promptfoo LLM evaluation setup
 
 ## Prerequisites
 
 - Python 3.12+
 - Docker and Docker Compose
 - uv (Python package manager)
+- Ollama with gemma3 models (for LLM features)
 
 ## Quick Start
 
@@ -54,6 +56,8 @@ uv run uvicorn src.main:app --reload --host 127.0.0.1 --port 8001
 | redis | 6380 | Redis (for Celery) |
 | db-test | 5435 | PostgreSQL test database |
 | api | 8001 | FastAPI server (Docker) |
+| celery-worker | - | Celery worker for background tasks |
+| celery-beat | - | Celery beat scheduler |
 
 ## Project Setup (Detailed)
 
@@ -161,6 +165,11 @@ uv run pytest --cov=src --cov-report=html
 - `GET /api/v1/responses/{id}` - Get response
 - `GET /api/v1/responses/pending` - Get pending responses
 
+### LLM
+- `GET /api/v1/llm/health` - Check LLM availability
+- `POST /api/v1/llm/process-response` - Process response with LLM
+- `POST /api/v1/llm/generate-questions` - Generate questions for a category
+
 ## Project Structure
 
 ```
@@ -170,11 +179,14 @@ habit-bot/
 │   ├── main.py              # FastAPI application entry point
 │   ├── config.py            # Configuration management
 │   ├── database.py          # SQLAlchemy setup
+│   ├── celery_app.py        # Celery configuration
 │   ├── models/              # SQLAlchemy ORM models (11 models)
 │   ├── schemas/             # Pydantic schemas
-│   └── api/                 # API routers
+│   ├── api/                 # API routers
+│   ├── services/            # Business logic (LLM, etc.)
+│   └── tasks/               # Celery background tasks
 ├── alembic/                 # Database migrations
-├── tests/                   # Test suite (28 tests)
+├── tests/                   # Test suite (44 tests)
 ├── docker-compose.yml
 ├── Dockerfile
 ├── pyproject.toml

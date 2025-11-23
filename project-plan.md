@@ -1413,6 +1413,148 @@ Extract structured data as valid JSON matching the schema exactly.
         }
 ```
 
+### 9.4 LLM Evaluation with Promptfoo
+
+**Purpose:** Use promptfoo to systematically evaluate and improve LLM extraction quality.
+
+**Setup:**
+```bash
+# Install promptfoo
+npm install -g promptfoo
+
+# Initialize in project
+promptfoo init
+```
+
+**Evaluation Configuration (`promptfooconfig.yaml`):**
+```yaml
+description: "EMA Health Tracking - LLM Extraction Evaluation"
+
+providers:
+  - id: ollama:gemma3:12b
+    config:
+      temperature: 0.3
+  - id: ollama:gemma3:1b  # Faster model for testing
+    config:
+      temperature: 0.3
+
+prompts:
+  - file://prompts/extraction/nutrition.txt
+  - file://prompts/extraction/sleep.txt
+  - file://prompts/extraction/mental_state.txt
+  - file://prompts/extraction/substances.txt
+
+tests:
+  # Nutrition extraction tests
+  - vars:
+      response_text: "I had two eggs scrambled with cheese and toast around 8am"
+      question_text: "What have you eaten today?"
+      category: "nutrition"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: "output.items && output.items.length >= 2"
+      - type: javascript
+        value: "output.items.some(i => i.item.toLowerCase().includes('egg'))"
+
+  # Sleep extraction tests
+  - vars:
+      response_text: "Slept about 7 hours, went to bed at 11pm, woke at 6am. Quality 6/10."
+      question_text: "How did you sleep last night?"
+      category: "sleep"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: "output.duration === 7 || output.data.duration === 7"
+      - type: javascript
+        value: "output.quality >= 5 && output.quality <= 7"
+
+  # Mental state extraction tests
+  - vars:
+      response_text: "Feeling pretty good, maybe 7 out of 10. Tired but decent mood."
+      question_text: "How are you feeling right now?"
+      category: "mental_state"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: "output.mood >= 6 && output.mood <= 8"
+
+  # Edge cases
+  - vars:
+      response_text: "nothing really"
+      question_text: "What have you eaten?"
+      category: "nutrition"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: "output.items.length === 0 || output.summary.toLowerCase().includes('nothing')"
+```
+
+**Prompt Templates (`prompts/extraction/nutrition.txt`):**
+```
+You are a health data extraction assistant.
+
+Question: {{question_text}}
+User Response: {{response_text}}
+Category: {{category}}
+
+Extract structured data as JSON. Include:
+- items: array of food items with name, quantity, unit, time
+- hydration: water intake if mentioned
+- summary: brief text summary
+
+Return ONLY valid JSON.
+```
+
+**Running Evaluations:**
+```bash
+# Run all tests
+promptfoo eval
+
+# Run with specific provider
+promptfoo eval --providers ollama:gemma3:12b
+
+# Generate comparison report
+promptfoo eval --output results.json
+promptfoo view results.json
+
+# Compare models
+promptfoo eval --providers "ollama:gemma3:12b,ollama:gemma3:1b" --compare
+```
+
+**Evaluation Metrics:**
+- **Accuracy:** Does extraction capture correct data?
+- **Completeness:** Are all mentioned items extracted?
+- **Schema Compliance:** Does output match expected JSON schema?
+- **Robustness:** Does it handle edge cases (typos, incomplete info)?
+- **Latency:** How fast is extraction?
+
+**CI Integration:**
+```yaml
+# .github/workflows/llm-eval.yml
+name: LLM Evaluation
+on:
+  push:
+    paths:
+      - 'prompts/**'
+      - 'src/services/llm.py'
+jobs:
+  eval:
+    runs-on: self-hosted  # Needs Ollama
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g promptfoo
+      - run: promptfoo eval --output results.json
+      - run: promptfoo eval --output results.json --assertions-only
+```
+
+**Iteration Process:**
+1. Run baseline evaluation
+2. Identify failing test cases
+3. Improve prompts or add examples
+4. Re-run evaluation
+5. Track improvements over time
+
 ### 10. Analysis Engine
 
 #### 10.1 Correlation Analysis
