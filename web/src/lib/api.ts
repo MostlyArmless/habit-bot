@@ -123,6 +123,17 @@ class ApiClient {
   async reprocessResponse(responseId: number): Promise<{ success: boolean }> {
     return this.processResponseWithLLM(responseId);
   }
+
+  async deleteResponse(responseId: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/v1/responses/${responseId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error: ${response.status} - ${error}`);
+    }
+  }
 }
 
 export const api = new ApiClient();

@@ -42,6 +42,7 @@ export default function Home() {
   const [logResult, setLogResult] = useState<QuickLogResponse | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const userId = 1; // Default user for now
 
@@ -91,6 +92,22 @@ export default function Home() {
       console.error('Reprocess failed:', err);
     } finally {
       setReprocessingId(null);
+    }
+  };
+
+  const handleDelete = async (responseId: number) => {
+    if (!confirm('Delete this entry?')) return;
+
+    setDeletingId(responseId);
+    try {
+      await api.deleteResponse(responseId);
+      setExpandedId(null);
+      loadResponses();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Failed to delete entry.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -222,15 +239,24 @@ export default function Home() {
                         </div>
                       )}
 
-                      {response.processing_status === 'failed' && (
+                      <div className="flex items-center gap-4 mt-3">
+                        {response.processing_status === 'failed' && (
+                          <button
+                            onClick={() => handleReprocess(response.id)}
+                            disabled={reprocessingId === response.id}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            {reprocessingId === response.id ? 'Reprocessing...' : 'Retry Analysis'}
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleReprocess(response.id)}
-                          disabled={reprocessingId === response.id}
-                          className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                          onClick={() => handleDelete(response.id)}
+                          disabled={deletingId === response.id}
+                          className="text-sm text-red-600 hover:text-red-800"
                         >
-                          {reprocessingId === response.id ? 'Reprocessing...' : 'Retry Analysis'}
+                          {deletingId === response.id ? 'Deleting...' : 'Delete'}
                         </button>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -80,3 +80,13 @@ def get_pending_responses(
         .limit(limit)
         .all()
     )
+
+
+@router.delete("/{response_id}", status_code=204)
+def delete_response(response_id: int, db: Session = Depends(get_db)) -> None:
+    """Delete a response by ID."""
+    response = db.query(ResponseModel).filter(ResponseModel.id == response_id).first()
+    if not response:
+        raise HTTPException(status_code=404, detail="Response not found")
+    db.delete(response)
+    db.commit()
