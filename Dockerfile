@@ -12,13 +12,15 @@ RUN apt-get update && apt-get install -y \
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy dependency files
+# Copy files needed for install
 COPY pyproject.toml .
+COPY project-plan.md .
+COPY src ./src
 
 # Install dependencies using uv
 RUN uv pip install --system -e ".[dev]"
 
-# Copy application code
+# Copy remaining application code
 COPY . .
 
 # Create non-root user

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import (
     categories_router,
@@ -32,6 +33,15 @@ app = FastAPI(
     description="Personal Health Tracking System using Ecological Momentary Assessment (EMA)",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# CORS middleware for PWA access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, restrict to specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers

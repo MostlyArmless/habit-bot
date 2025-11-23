@@ -42,41 +42,33 @@ Subscribe at: https://ntfy.sh/your-unique-topic-guid
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
-uv sync
-cd web && npm install && cd ..
-
-# 2. Copy environment files
+# 1. Copy environment file
 cp .env.example .env
-cp web/.env.example web/.env.local
+# Edit .env if needed (defaults use 192.168.0.150 for LAN access)
 
-# 3. Start services
-docker compose up -d db redis
+# 2. Start everything with hot reloading
+docker compose up -d
 
-# 4. Apply migrations
-uv run alembic upgrade head
-
-# 5. Run the backend
-uv run uvicorn src.main:app --reload --host 127.0.0.1 --port 8001
-
-# 6. Run the PWA (in another terminal)
-cd web && npm run dev
+# 3. Apply migrations (first time only)
+docker compose exec api alembic upgrade head
 ```
 
-### Running with Celery (for notifications)
+Access the PWA at `http://<your-server-ip>:3000`
+
+### View logs
 
 ```bash
-# Terminal 1: Backend API
-uv run uvicorn src.main:app --reload --port 8001
+docker compose logs -f        # All services
+docker compose logs -f api    # Just the API
+docker compose logs -f pwa    # Just the PWA
+```
 
-# Terminal 2: Celery worker
-uv run celery -A src.celery_app worker --loglevel=info
+### Running tests
 
-# Terminal 3: Celery beat (scheduler)
-uv run celery -A src.celery_app beat --loglevel=info
-
-# Terminal 4: PWA
-cd web && npm run dev
+```bash
+uv sync
+docker compose --profile test up -d db-test
+uv run pytest
 ```
 
 ## Docker Services
@@ -85,11 +77,11 @@ cd web && npm run dev
 |---------|------|-------------|
 | db | 5434 | PostgreSQL database |
 | redis | 6380 | Redis (for Celery) |
-| db-test | 5435 | PostgreSQL test database |
-| api | 8001 | FastAPI server (Docker) |
+| api | 8001 | FastAPI server with hot reload |
 | celery-worker | - | Celery worker for background tasks |
 | celery-beat | - | Celery beat scheduler |
-| pwa | 3000 | Next.js PWA (use --profile pwa) |
+| pwa | 3000 | Next.js PWA with hot reload |
+| db-test | 5435 | PostgreSQL test database (--profile test) |
 
 ## Project Setup (Detailed)
 
