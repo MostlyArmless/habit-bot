@@ -68,6 +68,20 @@ export default function Home() {
       .catch(() => setStatus('error'));
   }, []);
 
+  // Auto-refresh when there are pending/processing entries
+  useEffect(() => {
+    const hasPending = responses.some(
+      (r) => r.processing_status === 'pending' || r.processing_status === 'processing'
+    );
+    if (!hasPending) return;
+
+    const interval = setInterval(() => {
+      loadResponses();
+    }, 3000); // Refresh every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [responses]);
+
   const handleQuickLog = async () => {
     if (!quickLogText.trim() || isSubmitting) return;
 
@@ -238,6 +252,16 @@ export default function Home() {
                         <span className="text-xs text-gray-400">
                           {formatTimestamp(response.timestamp)}
                         </span>
+                        {response.processing_status === 'pending' && (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                            pending
+                          </span>
+                        )}
+                        {response.processing_status === 'processing' && (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+                            processing
+                          </span>
+                        )}
                         {response.processing_status === 'failed' && (
                           <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                             failed

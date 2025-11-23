@@ -12,6 +12,7 @@ from src.models.response import ProcessingStatus
 from src.models.response import Response as ResponseModel
 from src.models.user import User
 from src.services.llm import LLMService, get_llm_service
+from src.tasks.llm_tasks import process_response
 
 router = APIRouter(prefix="/api/v1/quicklog", tags=["quicklog"])
 
@@ -51,16 +52,17 @@ async def create_quick_log(
     """Create a quick log entry with auto-categorization.
 
     This endpoint:
-    1. Uses LLM to detect the category of the log
+    1. Uses LLM to detect the category of the log (fast, synchronous)
     2. Creates a prompt and response automatically
-    3. Processes the response to extract structured data
+    3. Queues background task for structured data extraction
+    4. Returns immediately so user can submit more entries
     """
     # Verify user exists
     user = db.query(User).filter(User.id == request.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Use LLM to detect category
+    # Use LLM to detect category (fast operation with small model)
     category_result = await _detect_category(llm, request.text)
 
     # Use provided timestamp or default to now
@@ -82,7 +84,7 @@ async def create_quick_log(
     db.commit()
     db.refresh(prompt)
 
-    # Create the response
+    # Create the response with PENDING status
     response = ResponseModel(
         prompt_id=prompt.id,
         user_id=request.user_id,
@@ -90,36 +92,22 @@ async def create_quick_log(
         response_text=request.text,
         category=category_result.category,
         timestamp=entry_time,
-        processing_status=ProcessingStatus.PROCESSING.value,
+        processing_status=ProcessingStatus.PENDING.value,
     )
     db.add(response)
     db.commit()
     db.refresh(response)
 
-    # Process with LLM to extract structured data
-    try:
-        structured_data = await llm.extract_structured_data(
-            response_text=request.text,
-            question_text=category_result.suggested_question,
-            category=category_result.category,
-        )
-        response.response_structured = structured_data
-        response.processing_status = ProcessingStatus.COMPLETED.value
-        summary = structured_data.get("summary", request.text[:100])
-    except Exception as e:
-        response.processing_status = ProcessingStatus.FAILED.value
-        structured_data = None
-        summary = request.text[:100]
+    # Queue background task for structured data extraction
+    process_response.delay(response.id)
 
-    db.commit()
-    db.refresh(response)
-
+    # Return immediately - processing happens in background
     return QuickLogResponse(
         response_id=response.id,
         category=category_result.category,
-        summary=summary,
-        structured_data=structured_data,
-        processing_status=response.processing_status,
+        summary=f"Processing: {request.text[:80]}..." if len(request.text) > 80 else f"Processing: {request.text}",
+        structured_data=None,
+        processing_status=ProcessingStatus.PENDING.value,
     )
 
 
