@@ -113,10 +113,14 @@ class ApiClient {
     return this.fetch<Response[]>(`/api/v1/responses/${query ? `?${query}` : ''}`);
   }
 
-  async quickLog(userId: number, text: string): Promise<QuickLogResponse> {
+  async quickLog(userId: number, text: string, timestamp?: string): Promise<QuickLogResponse> {
+    const body: { user_id: number; text: string; timestamp?: string } = { user_id: userId, text };
+    if (timestamp) {
+      body.timestamp = timestamp;
+    }
     return this.fetch<QuickLogResponse>('/api/v1/quicklog/', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, text }),
+      body: JSON.stringify(body),
     });
   }
 

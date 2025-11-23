@@ -42,6 +42,8 @@ export default function Home() {
   const [quickLogText, setQuickLogText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logResult, setLogResult] = useState<QuickLogResponse | null>(null);
+  const [showBackdate, setShowBackdate] = useState(false);
+  const [backdateValue, setBackdateValue] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -73,9 +75,13 @@ export default function Home() {
     setLogResult(null);
 
     try {
-      const result = await api.quickLog(userId, quickLogText);
+      // Convert local datetime to ISO string if backdating
+      const timestamp = backdateValue ? new Date(backdateValue).toISOString() : undefined;
+      const result = await api.quickLog(userId, quickLogText, timestamp);
       setLogResult(result);
       setQuickLogText('');
+      setBackdateValue('');
+      setShowBackdate(false);
       loadResponses();
     } catch (err) {
       console.error('Quick log failed:', err);
@@ -153,9 +159,38 @@ export default function Home() {
             rows={3}
             disabled={isSubmitting}
           />
+          {/* Backdate toggle and input */}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setShowBackdate(!showBackdate)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              {showBackdate ? '− Hide time' : '+ Set time'}
+            </button>
+            {showBackdate && (
+              <input
+                type="datetime-local"
+                value={backdateValue}
+                onChange={(e) => setBackdateValue(e.target.value)}
+                className="text-xs border rounded px-2 py-1 text-gray-600"
+                disabled={isSubmitting}
+              />
+            )}
+            {backdateValue && (
+              <button
+                type="button"
+                onClick={() => { setBackdateValue(''); setShowBackdate(false); }}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
           <div className="flex justify-between items-center mt-2">
             <span className="text-xs text-gray-400">
-              Auto-categorized by AI
+              {backdateValue ? `Logging for: ${new Date(backdateValue).toLocaleString()}` : 'Auto-categorized by AI'}
             </span>
             <button
               onClick={handleQuickLog}

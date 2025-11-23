@@ -21,6 +21,7 @@ class QuickLogRequest(BaseModel):
 
     user_id: int
     text: str
+    timestamp: datetime | None = None  # Optional: backdate entries to a specific time
 
 
 class QuickLogResponse(BaseModel):
@@ -62,12 +63,17 @@ async def create_quick_log(
     # Use LLM to detect category
     category_result = await _detect_category(llm, request.text)
 
+    # Use provided timestamp or default to now
+    entry_time = request.timestamp if request.timestamp else datetime.now(timezone.utc)
+    # Ensure timezone-aware
+    if entry_time.tzinfo is None:
+        entry_time = entry_time.replace(tzinfo=timezone.utc)
+
     # Create an ad-hoc prompt
-    now = datetime.now(timezone.utc)
     prompt = Prompt(
         user_id=request.user_id,
-        scheduled_time=now,
-        sent_time=now,
+        scheduled_time=entry_time,
+        sent_time=entry_time,
         questions={"q1": category_result.suggested_question},
         categories=[category_result.category],
         status=PromptStatus.COMPLETED.value,
@@ -83,7 +89,7 @@ async def create_quick_log(
         question_text=category_result.suggested_question,
         response_text=request.text,
         category=category_result.category,
-        timestamp=now,
+        timestamp=entry_time,
         processing_status=ProcessingStatus.PROCESSING.value,
     )
     db.add(response)
