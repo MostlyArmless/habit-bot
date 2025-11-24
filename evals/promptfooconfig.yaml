@@ -25,95 +25,90 @@ evaluateOptions:
 prompts:
   - file://prompts/category_detection.txt
 
+# Default test config - strip code fences before parsing
+defaultTest:
+  options:
+    transform: |
+      // Strip markdown code fences if present
+      let text = output.trim();
+      if (text.startsWith('```json')) text = text.slice(7);
+      else if (text.startsWith('```')) text = text.slice(3);
+      if (text.endsWith('```')) text = text.slice(0, -3);
+      return text.trim();
+
 # Test cases for category detection
 tests:
   - vars:
       log_entry: "Had a great workout this morning - ran 5k in 25 minutes"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "physical_activity";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "physical_activity";
 
   - vars:
       log_entry: "Feeling really anxious about tomorrow's presentation"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "stress_anxiety" || data.category === "mental_state";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "stress_anxiety" || data.category === "mental_state";
 
   - vars:
       log_entry: "Had eggs and toast for breakfast with orange juice"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "nutrition";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "nutrition";
 
   - vars:
       log_entry: "Slept terribly last night, kept waking up every hour"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "sleep";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "sleep";
 
   - vars:
       log_entry: "Had two cups of coffee and took my daily vitamins"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "substances";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "substances";
 
   - vars:
       log_entry: "Headache started around noon, feels like tension"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "physical_symptoms";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "physical_symptoms";
 
   - vars:
       log_entry: "Had a great lunch with Sarah, caught up on everything"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "social_interaction" || data.category === "nutrition";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "social_interaction" || data.category === "nutrition";
 
   - vars:
       log_entry: "Super focused today, finished the quarterly report"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const data = JSON.parse(output);
-            return data.category === "work_productivity" || data.category === "mental_state";
-          } catch { return false; }
+          const data = JSON.parse(output);
+          return data.category === "work_productivity" || data.category === "mental_state";
 
 # Output
 outputPath: ./output

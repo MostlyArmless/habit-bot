@@ -20,17 +20,25 @@ evaluateOptions:
 prompts:
   - file://prompts/question_generation.txt
 
+# Strip code fences before parsing
+defaultTest:
+  options:
+    transform: |
+      let text = output.trim();
+      if (text.startsWith('```json')) text = text.slice(7);
+      else if (text.startsWith('```')) text = text.slice(3);
+      if (text.endsWith('```')) text = text.slice(0, -3);
+      return text.trim();
+
 tests:
   - vars:
       category: "sleep"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const questions = JSON.parse(output);
-            return Array.isArray(questions) && questions.length >= 1 && questions.length <= 3;
-          } catch { return false; }
+          const questions = JSON.parse(output);
+          return Array.isArray(questions) && questions.length >= 1 && questions.length <= 3;
       - type: javascript
         value: |
           const str = output.toLowerCase();
@@ -39,13 +47,11 @@ tests:
   - vars:
       category: "nutrition"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const questions = JSON.parse(output);
-            return Array.isArray(questions) && questions.length >= 1;
-          } catch { return false; }
+          const questions = JSON.parse(output);
+          return Array.isArray(questions) && questions.length >= 1;
       - type: javascript
         value: |
           const str = output.toLowerCase();
@@ -54,13 +60,11 @@ tests:
   - vars:
       category: "mental_state"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const questions = JSON.parse(output);
-            return Array.isArray(questions) && questions.length >= 1;
-          } catch { return false; }
+          const questions = JSON.parse(output);
+          return Array.isArray(questions) && questions.length >= 1;
       - type: javascript
         value: |
           const str = output.toLowerCase();
@@ -69,13 +73,11 @@ tests:
   - vars:
       category: "physical_activity"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const questions = JSON.parse(output);
-            return Array.isArray(questions) && questions.length >= 1;
-          } catch { return false; }
+          const questions = JSON.parse(output);
+          return Array.isArray(questions) && questions.length >= 1;
       - type: javascript
         value: |
           const str = output.toLowerCase();
@@ -84,13 +86,11 @@ tests:
   - vars:
       category: "stress_anxiety"
     assert:
-      - type: contains-json
+      - type: is-json
       - type: javascript
         value: |
-          try {
-            const questions = JSON.parse(output);
-            return Array.isArray(questions) && questions.length >= 1;
-          } catch { return false; }
+          const questions = JSON.parse(output);
+          return Array.isArray(questions) && questions.length >= 1;
       - type: javascript
         value: |
           const str = output.toLowerCase();

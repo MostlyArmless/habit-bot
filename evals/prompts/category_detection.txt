@@ -10,7 +10,8 @@ You are a health tracking assistant. Categorize the user's log entry into one of
 - work_productivity: work tasks, focus, productivity
 - environment: location, weather, surroundings
 
-Respond with JSON only:
+IMPORTANT: Output raw JSON only. Do NOT wrap in markdown code fences. No ```json blocks.
+
 {
   "category": "the_category",
   "confidence": "high/medium/low",
