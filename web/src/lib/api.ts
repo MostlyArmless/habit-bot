@@ -138,6 +138,10 @@ class ApiClient {
       throw new Error(`API error: ${response.status} - ${error}`);
     }
   }
+
+  async getUpcomingPrompts(userId: number, limit: number = 10): Promise<Prompt[]> {
+    return this.fetch<Prompt[]>(`/api/v1/prompts/upcoming?user_id=${userId}&limit=${limit}`);
+  }
 }
 
 export const api = new ApiClient();

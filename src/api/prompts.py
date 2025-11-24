@@ -67,6 +67,27 @@ def get_next_prompt(
     return prompt
 
 
+@router.get("/upcoming", response_model=list[Prompt])
+def get_upcoming_prompts(
+    user_id: int = Query(..., description="User ID to get upcoming prompts for"),
+    limit: int = Query(10, description="Maximum number of prompts to return"),
+    db: Session = Depends(get_db),
+) -> list[PromptModel]:
+    """Get upcoming scheduled prompts for a user (future prompts not yet sent)."""
+    prompts = (
+        db.query(PromptModel)
+        .filter(
+            PromptModel.user_id == user_id,
+            PromptModel.status == PromptStatus.SCHEDULED.value,
+            PromptModel.scheduled_time > datetime.utcnow(),
+        )
+        .order_by(PromptModel.scheduled_time.asc())
+        .limit(limit)
+        .all()
+    )
+    return prompts
+
+
 @router.get("/{prompt_id}", response_model=PromptWithResponses)
 def get_prompt(prompt_id: int, db: Session = Depends(get_db)) -> PromptModel:
     """Get a prompt by ID with its responses."""

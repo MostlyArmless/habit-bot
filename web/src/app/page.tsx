@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, Response as ApiResponse, QuickLogResponse } from '@/lib/api';
+import { api, Response as ApiResponse, QuickLogResponse, Prompt } from '@/lib/api';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -36,6 +36,22 @@ function formatTimestamp(timestamp: string): string {
   return date.toLocaleDateString();
 }
 
+function formatUpcomingTime(timestamp: string): string {
+  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+  const date = new Date(utcTimestamp);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `in ${diffMins}m`;
+  if (diffHours < 24) return `in ${diffHours}h ${diffMins % 60}m`;
+
+  // Show day of week and time for prompts more than 24h away
+  return date.toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
 export default function Home() {
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [responses, setResponses] = useState<ApiResponse[]>([]);
@@ -47,6 +63,7 @@ export default function Home() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [upcomingPrompts, setUpcomingPrompts] = useState<Prompt[]>([]);
 
   const userId = 1; // Default user for now
 
@@ -59,11 +76,21 @@ export default function Home() {
     }
   };
 
+  const loadUpcomingPrompts = async () => {
+    try {
+      const data = await api.getUpcomingPrompts(userId, 5);
+      setUpcomingPrompts(data);
+    } catch (err) {
+      console.error('Failed to load upcoming prompts:', err);
+    }
+  };
+
   useEffect(() => {
     api.healthCheck()
       .then(() => {
         setStatus('connected');
         loadResponses();
+        loadUpcomingPrompts();
       })
       .catch(() => setStatus('error'));
   }, []);
@@ -228,6 +255,39 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Upcoming Prompts */}
+        {upcomingPrompts.length > 0 && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b">
+              <h2 className="font-semibold text-gray-700">Upcoming Check-ins</h2>
+            </div>
+            <div className="divide-y">
+              {upcomingPrompts.map((prompt) => (
+                <div key={prompt.id} className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-400" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {prompt.categories?.map((cat) => (
+                          <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
+                            {cat.replace('_', ' ')}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {Object.values(prompt.questions)[0]}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm text-gray-500 whitespace-nowrap">
+                    {formatUpcomingTime(prompt.scheduled_time)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent Entries */}
         <div className="bg-white rounded-lg shadow">

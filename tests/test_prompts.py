@@ -145,3 +145,96 @@ def test_update_prompt_status(client: TestClient):
     )
     assert response.status_code == 200
     assert response.json()["status"] == "sent"
+
+
+def test_get_upcoming_prompts(client: TestClient):
+    """Test getting upcoming scheduled prompts."""
+    # Create a user
+    user_response = client.post("/api/v1/users/", json={"name": "Upcoming Prompt User"})
+    user_id = user_response.json()["id"]
+
+    # Create a future prompt (1 hour from now)
+    future_time = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": future_time,
+            "questions": {"q1": "How is your energy level?"},
+            "categories": ["mental_state"],
+        },
+    )
+
+    # Create another future prompt (2 hours from now)
+    future_time_2 = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+    client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": future_time_2,
+            "questions": {"q1": "How was your lunch?"},
+            "categories": ["nutrition"],
+        },
+    )
+
+    # Get upcoming prompts
+    response = client.get(f"/api/v1/prompts/upcoming?user_id={user_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2
+
+    # Verify prompts are sorted by scheduled_time ascending
+    if len(data) >= 2:
+        first_time = data[0]["scheduled_time"]
+        second_time = data[1]["scheduled_time"]
+        assert first_time <= second_time
+
+
+def test_get_upcoming_prompts_empty(client: TestClient):
+    """Test getting upcoming prompts when none exist."""
+    user_response = client.post("/api/v1/users/", json={"name": "No Upcoming User"})
+    user_id = user_response.json()["id"]
+
+    response = client.get(f"/api/v1/prompts/upcoming?user_id={user_id}")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_get_upcoming_prompts_excludes_past(client: TestClient):
+    """Test that past prompts are not included in upcoming."""
+    user_response = client.post("/api/v1/users/", json={"name": "Past Prompt User"})
+    user_id = user_response.json()["id"]
+
+    # Create a past prompt
+    past_time = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+    client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": past_time,
+            "questions": {"q1": "Past question"},
+        },
+    )
+
+    # Create a future prompt
+    future_time = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": future_time,
+            "questions": {"q1": "Future question"},
+        },
+    )
+
+    # Get upcoming - should only include future
+    response = client.get(f"/api/v1/prompts/upcoming?user_id={user_id}")
+    assert response.status_code == 200
+    data = response.json()
+
+    # All returned prompts should be in the future
+    now = datetime.utcnow()
+    for prompt in data:
+        scheduled = datetime.fromisoformat(prompt["scheduled_time"].replace("Z", ""))
+        assert scheduled > now
