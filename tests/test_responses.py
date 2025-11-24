@@ -151,3 +151,102 @@ def test_get_response_not_found(client: TestClient):
     """Test getting a non-existent response."""
     response = client.get("/api/v1/responses/99999")
     assert response.status_code == 404
+
+
+def test_delete_response_soft_delete(client: TestClient):
+    """Test soft deleting a response."""
+    # Create test data
+    user_response = client.post("/api/v1/users/", json={"name": "Delete Response User"})
+    user_id = user_response.json()["id"]
+
+    prompt_response = client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": datetime.utcnow().isoformat(),
+            "questions": {"q1": "Test delete"},
+        },
+    )
+    prompt_id = prompt_response.json()["id"]
+
+    create_response = client.post(
+        "/api/v1/responses/",
+        json={
+            "prompt_id": prompt_id,
+            "user_id": user_id,
+            "question_text": "Test delete?",
+            "response_text": "Response to delete",
+        },
+    )
+    response_id = create_response.json()["id"]
+
+    # Delete the response
+    delete_response = client.delete(f"/api/v1/responses/{response_id}")
+    assert delete_response.status_code == 204
+
+    # Verify it's not returned in list (soft deleted)
+    get_response = client.get(f"/api/v1/responses/{response_id}")
+    assert get_response.status_code == 404
+
+
+def test_delete_response_not_found(client: TestClient):
+    """Test deleting a non-existent response."""
+    response = client.delete("/api/v1/responses/99999")
+    assert response.status_code == 404
+
+
+def test_deleted_responses_not_in_list(client: TestClient):
+    """Test that soft-deleted responses don't appear in listings."""
+    # Create test data
+    user_response = client.post("/api/v1/users/", json={"name": "List Delete User"})
+    user_id = user_response.json()["id"]
+
+    prompt_response = client.post(
+        "/api/v1/prompts/",
+        json={
+            "user_id": user_id,
+            "scheduled_time": datetime.utcnow().isoformat(),
+            "questions": {"q1": "Test list delete"},
+        },
+    )
+    prompt_id = prompt_response.json()["id"]
+
+    # Create two responses
+    create1 = client.post(
+        "/api/v1/responses/",
+        json={
+            "prompt_id": prompt_id,
+            "user_id": user_id,
+            "question_text": "Question 1?",
+            "response_text": "Response 1",
+        },
+    )
+    response1_id = create1.json()["id"]
+
+    create2 = client.post(
+        "/api/v1/responses/",
+        json={
+            "prompt_id": prompt_id,
+            "user_id": user_id,
+            "question_text": "Question 2?",
+            "response_text": "Response 2",
+        },
+    )
+    response2_id = create2.json()["id"]
+
+    # Get responses for user
+    list_response = client.get(f"/api/v1/responses/?user_id={user_id}")
+    initial_count = len([r for r in list_response.json() if r["user_id"] == user_id])
+
+    # Delete one response
+    client.delete(f"/api/v1/responses/{response1_id}")
+
+    # Verify count decreased
+    list_response = client.get(f"/api/v1/responses/?user_id={user_id}")
+    new_count = len([r for r in list_response.json() if r["user_id"] == user_id])
+    assert new_count == initial_count - 1
+
+    # Verify deleted response not in list
+    response_ids = [r["id"] for r in list_response.json()]
+    assert response1_id not in response_ids
+    assert response2_id in response_ids
