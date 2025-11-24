@@ -120,9 +120,10 @@ def generate_prompts_for_user(
     user_id: int = Query(..., description="User ID to generate prompts for"),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Generate scheduled prompts for a user based on their wake/sleep times.
+    """Generate scheduled prompts for a user based on their wake/screens-off times.
 
     This creates prompts for today that haven't already been scheduled.
+    Prompts are only scheduled between wake_time and screens_off_time.
     """
     from datetime import time as dt_time
 
@@ -132,8 +133,10 @@ def generate_prompts_for_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Get user's schedule preferences
+    # Prompts only allowed between wake_time and screens_off_time
     wake_time = user.wake_time or dt_time(8, 0)
-    sleep_time = user.sleep_time or dt_time(22, 0)
+    # Use screens_off_time as the cutoff (fall back to sleep_time, then default)
+    end_time = user.screens_off_time or user.sleep_time or dt_time(21, 0)
 
     # Calculate prompts for today
     now = datetime.utcnow()
@@ -148,14 +151,14 @@ def generate_prompts_for_user(
         "stress_anxiety",
     ]
 
-    # Calculate evenly spaced prompt times
+    # Calculate evenly spaced prompt times between wake and screens-off
     wake_minutes = wake_time.hour * 60 + wake_time.minute
-    sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
-    if sleep_minutes < wake_minutes:
-        sleep_minutes += 24 * 60
+    end_minutes = end_time.hour * 60 + end_time.minute
+    if end_minutes < wake_minutes:
+        end_minutes += 24 * 60
 
     num_prompts = 4
-    total_minutes = sleep_minutes - wake_minutes
+    total_minutes = end_minutes - wake_minutes
     interval = total_minutes // (num_prompts + 1)
 
     scheduled = 0

@@ -31,9 +31,28 @@ A personal health tracking system using Ecological Momentary Assessment (EMA) to
 - Ollama with gemma3 models (for LLM features)
 - Node.js 20+ (for PWA)
 
+## Ollama Setup
+
+The system uses Ollama for local LLM inference. When running Ollama as a systemd service, models must be downloaded as the `ollama` user to be available to the service.
+
+### Download Models as Ollama User
+
+```bash
+# Download models as the ollama user (required for systemd service)
+sudo -u ollama ollama pull gemma3:12b
+sudo -u ollama ollama pull gemma3:1b
+
+# Verify models are available
+sudo -u ollama ollama list
+```
+
+### Why This Matters
+
+If you download models as your regular user (e.g., `mike`), they'll be stored in `~/.ollama/models/` and won't be accessible to the systemd Ollama service which runs as the `ollama` user. Always use `sudo -u ollama` when pulling models for production use.
+
 ## ntfy Notification Topic
 
-The system uses ntfy.sh for push notifications. Subscribe to the topic to receive check-in reminders:
+The system uses ntfy.sh for push notifications. Subscribe to the topic to receive prompt notifications:
 
 **Topic:** `your-unique-topic-guid`
 

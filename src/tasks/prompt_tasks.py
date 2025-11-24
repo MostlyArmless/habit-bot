@@ -143,8 +143,10 @@ def create_scheduled_prompts_for_user(user_id: int) -> dict:
             return {"success": False, "error": "User not found"}
 
         # Get user's schedule preferences
+        # Prompts only allowed between wake_time and screens_off_time
         wake_time = user.wake_time or datetime.strptime("08:00:00", "%H:%M:%S").time()
-        sleep_time = user.sleep_time or datetime.strptime("22:00:00", "%H:%M:%S").time()
+        # Use screens_off_time as the cutoff (fall back to sleep_time, then default)
+        end_time = user.screens_off_time or user.sleep_time or datetime.strptime("21:00:00", "%H:%M:%S").time()
 
         # Calculate prompts for today
         now = datetime.now(timezone.utc)
@@ -159,9 +161,9 @@ def create_scheduled_prompts_for_user(user_id: int) -> dict:
             "stress_anxiety",
         ]
 
-        # Schedule 3-5 prompts throughout the day
+        # Schedule prompts between wake and screens-off times
         scheduled = 0
-        prompt_times = _calculate_prompt_times(wake_time, sleep_time, num_prompts=4)
+        prompt_times = _calculate_prompt_times(wake_time, end_time, num_prompts=4)
 
         for i, prompt_time in enumerate(prompt_times):
             scheduled_dt = datetime.combine(today, prompt_time, tzinfo=timezone.utc)
@@ -201,12 +203,12 @@ def create_scheduled_prompts_for_user(user_id: int) -> dict:
         db.close()
 
 
-def _calculate_prompt_times(wake_time, sleep_time, num_prompts: int = 4) -> list:
-    """Calculate evenly spaced prompt times between wake and sleep.
+def _calculate_prompt_times(wake_time, end_time, num_prompts: int = 4) -> list:
+    """Calculate evenly spaced prompt times between wake and screens-off.
 
     Args:
         wake_time: User's wake time
-        sleep_time: User's sleep time
+        end_time: User's screens-off time (or sleep time as fallback)
         num_prompts: Number of prompts to schedule
 
     Returns:
@@ -216,14 +218,14 @@ def _calculate_prompt_times(wake_time, sleep_time, num_prompts: int = 4) -> list
 
     # Convert to minutes since midnight for easier calculation
     wake_minutes = wake_time.hour * 60 + wake_time.minute
-    sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
+    end_minutes = end_time.hour * 60 + end_time.minute
 
-    # Handle case where sleep time is after midnight
-    if sleep_minutes < wake_minutes:
-        sleep_minutes += 24 * 60
+    # Handle case where end time is after midnight
+    if end_minutes < wake_minutes:
+        end_minutes += 24 * 60
 
     # Calculate interval
-    total_minutes = sleep_minutes - wake_minutes
+    total_minutes = end_minutes - wake_minutes
     interval = total_minutes // (num_prompts + 1)
 
     times = []
