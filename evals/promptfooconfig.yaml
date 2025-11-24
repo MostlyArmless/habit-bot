@@ -4,6 +4,7 @@
 description: "Habit Bot LLM Prompt Evaluation"
 
 # Providers - Models to evaluate
+# runSerially: true ensures ALL tests run against model 1 before ANY tests run against model 2
 providers:
   - id: ollama:chat:gemma3:12b
     label: Gemma3-12B
@@ -14,9 +15,11 @@ providers:
     config:
       temperature: 0.1
 
-# Important: Run sequentially to avoid GPU memory thrashing
+# Run all prompts against one model before switching to the next
+# This prevents GPU memory thrashing from constant model loading/unloading
 evaluateOptions:
   maxConcurrency: 1
+  runSerially: true
 
 # Default prompt (category detection)
 prompts:

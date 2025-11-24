@@ -12,8 +12,10 @@ providers:
     config:
       temperature: 0.1
 
+# Run all prompts against one model before switching to the next
 evaluateOptions:
   maxConcurrency: 1
+  runSerially: true
 
 prompts:
   - file://prompts/structured_extraction.txt
