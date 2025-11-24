@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 # Set test environment before importing app modules
 os.environ["ENVIRONMENT"] = "test"
+os.environ["TESTING"] = "1"  # Skip migrations in test mode
 os.environ["DATABASE_URL"] = "postgresql://test_user:test_password@localhost:5435/habit_bot_test"
 
 from src.database import Base, get_db

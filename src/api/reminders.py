@@ -123,22 +123,29 @@ def generate_reminders_for_user(
 
     This creates reminders for today that haven't already been scheduled.
     Reminders are only scheduled between wake_time and screens_off_time.
+    All times are handled in the user's local timezone and stored as UTC.
     """
-    from datetime import time as dt_time
+    from datetime import time as dt_time, timezone
+
+    import pytz
 
     user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Reminders only allowed between wake_time and screens_off_time
+    # Get user's timezone (default to UTC if not set)
+    user_tz = pytz.timezone(user.timezone) if user.timezone else pytz.UTC
+
+    # Reminders only allowed between wake_time and screens_off_time (user's local time)
     wake_time = user.wake_time or dt_time(8, 0)
     end_time = user.screens_off_time or user.sleep_time or dt_time(21, 0)
 
-    now = datetime.utcnow()
-    today = now.date()
+    # Get current time in user's timezone
+    now_utc = datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(user_tz)
+    today_local = now_local.date()
 
     categories = [
-        "mental_state",
         "sleep",
         "nutrition",
         "physical_activity",
@@ -148,41 +155,48 @@ def generate_reminders_for_user(
     # Calculate evenly spaced reminder times between wake and screens-off
     wake_minutes = wake_time.hour * 60 + wake_time.minute
     end_minutes = end_time.hour * 60 + end_time.minute
-    if end_minutes < wake_minutes:
-        end_minutes += 24 * 60
+    if end_minutes <= wake_minutes:
+        end_minutes += 24 * 60  # Handle overnight span
 
-    num_reminders = 4
+    num_reminders = len(categories)
     total_minutes = end_minutes - wake_minutes
     interval = total_minutes // (num_reminders + 1)
 
     scheduled = 0
     for i in range(1, num_reminders + 1):
-        minutes = (wake_minutes + interval * i) % (24 * 60)
-        hours = minutes // 60
+        minutes = wake_minutes + interval * i
+        hours = (minutes // 60) % 24
         mins = minutes % 60
         reminder_time = dt_time(hour=hours, minute=mins)
 
-        scheduled_dt = datetime.combine(today, reminder_time)
+        # Create datetime in user's local timezone
+        scheduled_local = user_tz.localize(datetime.combine(today_local, reminder_time))
 
-        if scheduled_dt <= now:
+        # Skip if this time has already passed
+        if scheduled_local <= now_local:
             continue
 
+        # Convert to UTC for storage
+        scheduled_utc = scheduled_local.astimezone(pytz.UTC).replace(tzinfo=None)
+
+        # Check for existing reminder at this time
         existing = (
             db.query(ReminderModel)
             .filter(ReminderModel.user_id == user_id)
-            .filter(ReminderModel.scheduled_time == scheduled_dt)
+            .filter(ReminderModel.scheduled_time == scheduled_utc)
             .first()
         )
         if existing:
             continue
 
-        reminder_categories = [categories[i % len(categories)]]
+        # Assign category based on index (cycling through categories)
+        category = categories[(i - 1) % len(categories)]
 
         reminder = ReminderModel(
             user_id=user_id,
-            scheduled_time=scheduled_dt,
-            questions={"q1": f"How are you doing with your {reminder_categories[0].replace('_', ' ')}?"},
-            categories=reminder_categories,
+            scheduled_time=scheduled_utc,
+            questions={"q1": f"How are you doing with your {category.replace('_', ' ')}?"},
+            categories=[category],
             status=ReminderStatus.SCHEDULED.value,
         )
         db.add(reminder)

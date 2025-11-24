@@ -1,8 +1,11 @@
 """FastAPI application entry point."""
 
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,13 +22,33 @@ from src.api import (
 )
 from src.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def run_migrations() -> None:
+    """Run alembic migrations on startup."""
+    import os
+
+    # Skip migrations during testing
+    if os.environ.get("TESTING") == "1":
+        logger.info("Skipping migrations in test mode")
+        return
+
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"Failed to run migrations: {e}")
+        raise
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
-    # Startup
+    # Startup - run migrations
+    run_migrations()
     yield
     # Shutdown
 
