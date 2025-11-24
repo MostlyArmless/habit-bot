@@ -1,0 +1,116 @@
+# Promptfoo configuration for Habit Bot LLM evaluation
+# Run all prompts against one model before switching to reduce GPU memory thrashing
+
+description: "Habit Bot LLM Prompt Evaluation"
+
+# Providers - Models to evaluate
+providers:
+  - id: ollama:chat:gemma3:12b
+    label: Gemma3-12B
+    config:
+      temperature: 0.1
+  - id: ollama:chat:qwen3:8b
+    label: Qwen3-8B
+    config:
+      temperature: 0.1
+
+# Important: Run sequentially to avoid GPU memory thrashing
+evaluateOptions:
+  maxConcurrency: 1
+
+# Default prompt (category detection)
+prompts:
+  - file://prompts/category_detection.txt
+
+# Test cases for category detection
+tests:
+  - vars:
+      log_entry: "Had a great workout this morning - ran 5k in 25 minutes"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "physical_activity";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Feeling really anxious about tomorrow's presentation"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "stress_anxiety" || data.category === "mental_state";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Had eggs and toast for breakfast with orange juice"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "nutrition";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Slept terribly last night, kept waking up every hour"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "sleep";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Had two cups of coffee and took my daily vitamins"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "substances";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Headache started around noon, feels like tension"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "physical_symptoms";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Had a great lunch with Sarah, caught up on everything"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "social_interaction" || data.category === "nutrition";
+          } catch { return false; }
+
+  - vars:
+      log_entry: "Super focused today, finished the quarterly report"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.category === "work_productivity" || data.category === "mental_state";
+          } catch { return false; }
+
+# Output
+outputPath: ./output

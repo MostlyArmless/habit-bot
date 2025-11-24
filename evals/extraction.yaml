@@ -1,0 +1,83 @@
+# Structured Data Extraction evaluation
+
+description: "Habit Bot - Structured Data Extraction"
+
+providers:
+  - id: ollama:chat:gemma3:12b
+    label: Gemma3-12B
+    config:
+      temperature: 0.1
+  - id: ollama:chat:qwen3:8b
+    label: Qwen3-8B
+    config:
+      temperature: 0.1
+
+evaluateOptions:
+  maxConcurrency: 1
+
+prompts:
+  - file://prompts/structured_extraction.txt
+
+tests:
+  - vars:
+      category: "sleep"
+      question: "How did you sleep last night?"
+      response: "I slept about 7 hours, went to bed around 11pm and woke up at 6am. Quality was maybe a 6 out of 10."
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const data = JSON.parse(output);
+            return data.summary !== undefined || data.data !== undefined;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("7") && (str.includes("hour") || str.includes("duration"));
+
+  - vars:
+      category: "nutrition"
+      question: "What have you eaten today?"
+      response: "For breakfast around 8am I had two scrambled eggs with cheese and a slice of whole wheat toast."
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("egg") && str.includes("toast");
+
+  - vars:
+      category: "physical_activity"
+      question: "What physical activity have you done today?"
+      response: "I went for a 30 minute jog this morning, probably covered about 3 miles at medium intensity."
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("30") && (str.includes("jog") || str.includes("run") || str.includes("minute"));
+
+  - vars:
+      category: "mental_state"
+      question: "How are you feeling right now?"
+      response: "I'm feeling pretty good, maybe a 7 out of 10. A bit tired but overall in a decent mood."
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("7") || str.includes("good") || str.includes("mood");
+
+  - vars:
+      category: "stress_anxiety"
+      question: "What's your current stress level?"
+      response: "Stress is around a 5 today. Work has been busy with a deadline coming up on Friday."
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("5") && (str.includes("stress") || str.includes("work") || str.includes("deadline"));
+
+outputPath: ./output

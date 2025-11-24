@@ -1,0 +1,34 @@
+{
+  "name": "habit-bot",
+  "version": "1.0.0",
+  "description": "A personal health tracking system using Ecological Momentary Assessment (EMA) to capture behaviors and outcomes in real-time.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "eval": "cd evals && npx promptfoo eval",
+    "eval:category": "cd evals && npx promptfoo eval -c promptfooconfig.yaml",
+    "eval:extraction": "cd evals && npx promptfoo eval -c extraction.yaml",
+    "eval:questions": "cd evals && npx promptfoo eval -c questions.yaml",
+    "eval:all": "npm run eval:category && npm run eval:extraction && npm run eval:questions",
+    "eval:view": "cd evals && npx promptfoo view",
+    "eval:cache-clear": "cd evals && npx promptfoo cache clear"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MostlyArmless/habit-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MostlyArmless/habit-bot/issues"
+  },
+  "homepage": "https://github.com/MostlyArmless/habit-bot#readme",
+  "devDependencies": {
+    "promptfoo": "^0.119.10"
+  }
+}

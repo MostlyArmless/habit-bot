@@ -60,3 +60,4 @@ config.yaml
 
 # Alembic
 alembic/versions/*.pyc
+node_modules/

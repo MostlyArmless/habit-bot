@@ -1,0 +1,97 @@
+# Question Generation evaluation
+
+description: "Habit Bot - Question Generation"
+
+providers:
+  - id: ollama:chat:gemma3:12b
+    label: Gemma3-12B
+    config:
+      temperature: 0.7
+  - id: ollama:chat:qwen3:8b
+    label: Qwen3-8B
+    config:
+      temperature: 0.7
+
+evaluateOptions:
+  maxConcurrency: 1
+
+prompts:
+  - file://prompts/question_generation.txt
+
+tests:
+  - vars:
+      category: "sleep"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const questions = JSON.parse(output);
+            return Array.isArray(questions) && questions.length >= 1 && questions.length <= 3;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("sleep") || str.includes("bed") || str.includes("rest") || str.includes("night") || str.includes("woke");
+
+  - vars:
+      category: "nutrition"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const questions = JSON.parse(output);
+            return Array.isArray(questions) && questions.length >= 1;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("eat") || str.includes("food") || str.includes("meal") || str.includes("drink") || str.includes("breakfast") || str.includes("lunch") || str.includes("dinner");
+
+  - vars:
+      category: "mental_state"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const questions = JSON.parse(output);
+            return Array.isArray(questions) && questions.length >= 1;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("feel") || str.includes("mood") || str.includes("emotion") || str.includes("mind");
+
+  - vars:
+      category: "physical_activity"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const questions = JSON.parse(output);
+            return Array.isArray(questions) && questions.length >= 1;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("exercise") || str.includes("activity") || str.includes("walk") || str.includes("workout") || str.includes("move");
+
+  - vars:
+      category: "stress_anxiety"
+    assert:
+      - type: contains-json
+      - type: javascript
+        value: |
+          try {
+            const questions = JSON.parse(output);
+            return Array.isArray(questions) && questions.length >= 1;
+          } catch { return false; }
+      - type: javascript
+        value: |
+          const str = output.toLowerCase();
+          return str.includes("stress") || str.includes("anxious") || str.includes("worry") || str.includes("overwhelm");
+
+outputPath: ./output
