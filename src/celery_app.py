@@ -37,5 +37,9 @@ app.conf.update(
             "task": "src.tasks.llm_tasks.process_pending_responses",
             "schedule": 30.0,  # Every 30 seconds
         },
+        "create-daily-prompts": {
+            "task": "src.tasks.prompt_tasks.create_daily_prompts_for_all_users",
+            "schedule": 3600.0,  # Every hour (will skip if prompts already exist)
+        },
     },
 )

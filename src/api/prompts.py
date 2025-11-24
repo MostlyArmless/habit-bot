@@ -115,6 +115,89 @@ def update_prompt(
     return prompt
 
 
+@router.post("/generate", response_model=dict)
+def generate_prompts_for_user(
+    user_id: int = Query(..., description="User ID to generate prompts for"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Generate scheduled prompts for a user based on their wake/sleep times.
+
+    This creates prompts for today that haven't already been scheduled.
+    """
+    from datetime import time as dt_time
+
+    # Verify user exists
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's schedule preferences
+    wake_time = user.wake_time or dt_time(8, 0)
+    sleep_time = user.sleep_time or dt_time(22, 0)
+
+    # Calculate prompts for today
+    now = datetime.utcnow()
+    today = now.date()
+
+    # Default categories to check
+    categories = [
+        "mental_state",
+        "sleep",
+        "nutrition",
+        "physical_activity",
+        "stress_anxiety",
+    ]
+
+    # Calculate evenly spaced prompt times
+    wake_minutes = wake_time.hour * 60 + wake_time.minute
+    sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
+    if sleep_minutes < wake_minutes:
+        sleep_minutes += 24 * 60
+
+    num_prompts = 4
+    total_minutes = sleep_minutes - wake_minutes
+    interval = total_minutes // (num_prompts + 1)
+
+    scheduled = 0
+    for i in range(1, num_prompts + 1):
+        minutes = (wake_minutes + interval * i) % (24 * 60)
+        hours = minutes // 60
+        mins = minutes % 60
+        prompt_time = dt_time(hour=hours, minute=mins)
+
+        scheduled_dt = datetime.combine(today, prompt_time)
+
+        # Skip if time has already passed
+        if scheduled_dt <= now:
+            continue
+
+        # Check if prompt already exists for this time
+        existing = (
+            db.query(PromptModel)
+            .filter(PromptModel.user_id == user_id)
+            .filter(PromptModel.scheduled_time == scheduled_dt)
+            .first()
+        )
+        if existing:
+            continue
+
+        # Select category for this prompt
+        prompt_categories = [categories[i % len(categories)]]
+
+        prompt = PromptModel(
+            user_id=user_id,
+            scheduled_time=scheduled_dt,
+            questions={"q1": f"How are you doing with your {prompt_categories[0].replace('_', ' ')}?"},
+            categories=prompt_categories,
+            status=PromptStatus.SCHEDULED.value,
+        )
+        db.add(prompt)
+        scheduled += 1
+
+    db.commit()
+    return {"success": True, "scheduled": scheduled}
+
+
 @router.post("/{prompt_id}/acknowledge", response_model=Prompt)
 def acknowledge_prompt(prompt_id: int, db: Session = Depends(get_db)) -> PromptModel:
     """Acknowledge that a user has opened a prompt."""

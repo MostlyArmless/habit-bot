@@ -57,6 +57,8 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState<string | null>(null);
   const [newPrompt, setNewPrompt] = useState({
     scheduledTime: '',
     category: 'mental_state',
@@ -79,6 +81,33 @@ export default function SchedulePage() {
   useEffect(() => {
     loadPrompts();
   }, []);
+
+  const handleGeneratePrompts = async () => {
+    setGenerating(true);
+    setGenerateMessage(null);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/prompts/generate?user_id=${userId}`, {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        if (result.scheduled > 0) {
+          setGenerateMessage(`Created ${result.scheduled} new prompts`);
+        } else {
+          setGenerateMessage('No new prompts needed - schedule is up to date');
+        }
+        loadPrompts();
+      } else {
+        setGenerateMessage(`Error: ${result.detail || 'Failed to generate'}`);
+      }
+    } catch (err) {
+      setGenerateMessage('Error: Failed to connect');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleCreatePrompt = async () => {
     if (!newPrompt.scheduledTime || !newPrompt.question) return;
@@ -133,18 +162,36 @@ export default function SchedulePage() {
             <h1 className="text-2xl font-bold text-gray-800">Schedule</h1>
             <p className="text-gray-500 text-sm">Manage your check-in prompts</p>
           </div>
-          <button
-            onClick={() => {
-              setShowCreateForm(!showCreateForm);
-              if (!newPrompt.scheduledTime) {
-                setNewPrompt(prev => ({ ...prev, scheduledTime: getDefaultTime() }));
-              }
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-          >
-            {showCreateForm ? 'Cancel' : '+ New'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleGeneratePrompts}
+              disabled={generating}
+              className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {generating ? 'Generating...' : 'Auto-Generate'}
+            </button>
+            <button
+              onClick={() => {
+                setShowCreateForm(!showCreateForm);
+                if (!newPrompt.scheduledTime) {
+                  setNewPrompt(prev => ({ ...prev, scheduledTime: getDefaultTime() }));
+                }
+              }}
+              className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+            >
+              {showCreateForm ? 'Cancel' : '+ New'}
+            </button>
+          </div>
         </div>
+
+        {/* Generate Message */}
+        {generateMessage && (
+          <div className={`p-3 rounded-lg text-sm ${
+            generateMessage.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+          }`}>
+            {generateMessage}
+          </div>
+        )}
 
         {/* Create Form */}
         {showCreateForm && (

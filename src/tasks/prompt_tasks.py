@@ -102,6 +102,29 @@ def send_prompt_notification(self, prompt_id: int) -> dict:
 
 
 @app.task
+def create_daily_prompts_for_all_users() -> dict:
+    """Create scheduled prompts for all users.
+
+    This periodic task runs daily to generate prompts for all active users.
+    """
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        total_scheduled = 0
+
+        for user in users:
+            result = create_scheduled_prompts_for_user(user.id)
+            if result.get("success"):
+                total_scheduled += result.get("scheduled", 0)
+
+        logger.info(f"Daily prompt generation: scheduled {total_scheduled} prompts for {len(users)} users")
+        return {"success": True, "total_scheduled": total_scheduled, "users": len(users)}
+
+    finally:
+        db.close()
+
+
+@app.task
 def create_scheduled_prompts_for_user(user_id: int) -> dict:
     """Create scheduled prompts for a user based on their preferences.
 

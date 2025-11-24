@@ -238,3 +238,30 @@ def test_get_upcoming_prompts_excludes_past(client: TestClient):
     for prompt in data:
         scheduled = datetime.fromisoformat(prompt["scheduled_time"].replace("Z", ""))
         assert scheduled > now
+
+
+def test_generate_prompts_for_user(client: TestClient):
+    """Test generating prompts automatically for a user."""
+    # Create a user with wake/sleep times
+    user_response = client.post(
+        "/api/v1/users/",
+        json={
+            "name": "Generate Prompt User",
+            "wake_time": "08:00:00",
+            "sleep_time": "22:00:00",
+        },
+    )
+    user_id = user_response.json()["id"]
+
+    # Generate prompts
+    response = client.post(f"/api/v1/prompts/generate?user_id={user_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert "success" in data
+    assert "scheduled" in data
+
+
+def test_generate_prompts_user_not_found(client: TestClient):
+    """Test generating prompts for non-existent user."""
+    response = client.post("/api/v1/prompts/generate?user_id=99999")
+    assert response.status_code == 404
