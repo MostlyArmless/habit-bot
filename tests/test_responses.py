@@ -7,24 +7,24 @@ from fastapi.testclient import TestClient
 
 def test_create_response(client: TestClient):
     """Test creating a response."""
-    # Create user and prompt first
+    # Create user and reminder first
     user_response = client.post("/api/v1/users/", json={"name": "Response Test User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "How are you?"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     response = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "How are you?",
             "response_text": "I'm feeling great today!",
@@ -37,12 +37,12 @@ def test_create_response(client: TestClient):
     assert data["processing_status"] == "pending"
 
 
-def test_create_response_prompt_not_found(client: TestClient):
-    """Test creating a response for non-existent prompt."""
+def test_create_response_reminder_not_found(client: TestClient):
+    """Test creating a response for non-existent reminder."""
     response = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": 99999,
+            "reminder_id": 99999,
             "user_id": 1,
             "question_text": "Test?",
             "response_text": "Test response",
@@ -57,20 +57,20 @@ def test_list_responses(client: TestClient):
     user_response = client.post("/api/v1/users/", json={"name": "List Response User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "Test"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Test?",
             "response_text": "Response",
@@ -88,20 +88,20 @@ def test_list_responses_filter_by_category(client: TestClient):
     user_response = client.post("/api/v1/users/", json={"name": "Filter Response User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "Test"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Test?",
             "response_text": "Response",
@@ -121,20 +121,20 @@ def test_get_response(client: TestClient):
     user_response = client.post("/api/v1/users/", json={"name": "Get Response User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "Test"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     create_response = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Test?",
             "response_text": "Get test response",
@@ -159,20 +159,20 @@ def test_delete_response_soft_delete(client: TestClient):
     user_response = client.post("/api/v1/users/", json={"name": "Delete Response User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "Test delete"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     create_response = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Test delete?",
             "response_text": "Response to delete",
@@ -201,21 +201,21 @@ def test_deleted_responses_not_in_list(client: TestClient):
     user_response = client.post("/api/v1/users/", json={"name": "List Delete User"})
     user_id = user_response.json()["id"]
 
-    prompt_response = client.post(
-        "/api/v1/prompts/",
+    reminder_response = client.post(
+        "/api/v1/reminders/",
         json={
             "user_id": user_id,
             "scheduled_time": datetime.utcnow().isoformat(),
             "questions": {"q1": "Test list delete"},
         },
     )
-    prompt_id = prompt_response.json()["id"]
+    reminder_id = reminder_response.json()["id"]
 
     # Create two responses
     create1 = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Question 1?",
             "response_text": "Response 1",
@@ -226,7 +226,7 @@ def test_deleted_responses_not_in_list(client: TestClient):
     create2 = client.post(
         "/api/v1/responses/",
         json={
-            "prompt_id": prompt_id,
+            "reminder_id": reminder_id,
             "user_id": user_id,
             "question_text": "Question 2?",
             "response_text": "Response 2",

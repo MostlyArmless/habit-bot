@@ -4,7 +4,7 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
-export interface Prompt {
+export interface Reminder {
   id: number;
   user_id: number;
   scheduled_time: string;
@@ -18,7 +18,7 @@ export interface Prompt {
 
 export interface Response {
   id: number;
-  prompt_id: number;
+  reminder_id: number;
   user_id: number;
   question_text: string;
   response_text: string;
@@ -30,7 +30,7 @@ export interface Response {
 }
 
 export interface ResponseCreate {
-  prompt_id: number;
+  reminder_id: number;
   user_id: number;
   question_text: string;
   response_text: string;
@@ -69,12 +69,12 @@ class ApiClient {
     return response.json();
   }
 
-  async getPrompt(promptId: number): Promise<Prompt> {
-    return this.fetch<Prompt>(`/api/v1/prompts/${promptId}`);
+  async getReminder(reminderId: number): Promise<Reminder> {
+    return this.fetch<Reminder>(`/api/v1/reminders/${reminderId}`);
   }
 
-  async acknowledgePrompt(promptId: number): Promise<Prompt> {
-    return this.fetch<Prompt>(`/api/v1/prompts/${promptId}/acknowledge`, {
+  async acknowledgeReminder(reminderId: number): Promise<Reminder> {
+    return this.fetch<Reminder>(`/api/v1/reminders/${reminderId}/acknowledge`, {
       method: 'POST',
     });
   }
@@ -139,8 +139,8 @@ class ApiClient {
     }
   }
 
-  async getUpcomingPrompts(userId: number, limit: number = 10): Promise<Prompt[]> {
-    return this.fetch<Prompt[]>(`/api/v1/prompts/upcoming?user_id=${userId}&limit=${limit}`);
+  async getUpcomingReminders(userId: number, limit: number = 10): Promise<Reminder[]> {
+    return this.fetch<Reminder[]>(`/api/v1/reminders/upcoming?user_id=${userId}&limit=${limit}`);
   }
 }
 

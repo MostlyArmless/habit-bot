@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.models.prompt import Prompt, PromptStatus
+from src.models.reminder import Reminder, ReminderStatus
 from src.models.response import ProcessingStatus
 from src.models.response import Response as ResponseModel
 from src.models.user import User
@@ -71,22 +71,22 @@ async def create_quick_log(
     if entry_time.tzinfo is None:
         entry_time = entry_time.replace(tzinfo=timezone.utc)
 
-    # Create an ad-hoc prompt
-    prompt = Prompt(
+    # Create an ad-hoc reminder
+    reminder = Reminder(
         user_id=request.user_id,
         scheduled_time=entry_time,
         sent_time=entry_time,
         questions={"q1": category_result.suggested_question},
         categories=[category_result.category],
-        status=PromptStatus.COMPLETED.value,
+        status=ReminderStatus.COMPLETED.value,
     )
-    db.add(prompt)
+    db.add(reminder)
     db.commit()
-    db.refresh(prompt)
+    db.refresh(reminder)
 
     # Create the response with PENDING status
     response = ResponseModel(
-        prompt_id=prompt.id,
+        reminder_id=reminder.id,
         user_id=request.user_id,
         question_text=category_result.suggested_question,
         response_text=request.text,

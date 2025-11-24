@@ -24,7 +24,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    prompts: Mapped[list["Prompt"]] = relationship(back_populates="user")  # noqa: F821
+    reminders: Mapped[list["Reminder"]] = relationship(back_populates="user")  # noqa: F821
     responses: Mapped[list["Response"]] = relationship(back_populates="user")  # noqa: F821
     behaviors: Mapped[list["Behavior"]] = relationship(back_populates="user")  # noqa: F821
     outcomes: Mapped[list["Outcome"]] = relationship(back_populates="user")  # noqa: F821

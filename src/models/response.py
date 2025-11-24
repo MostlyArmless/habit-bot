@@ -21,12 +21,12 @@ class ProcessingStatus(str, Enum):
 
 
 class Response(Base, TimestampMixin, SoftDeleteMixin):
-    """Response model for storing user responses to prompts."""
+    """Response model for storing user responses to reminders."""
 
     __tablename__ = "responses"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    prompt_id: Mapped[int] = mapped_column(ForeignKey("prompts.id"), nullable=False)
+    reminder_id: Mapped[int] = mapped_column(ForeignKey("reminders.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     response_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -42,7 +42,7 @@ class Response(Base, TimestampMixin, SoftDeleteMixin):
     processing_attempts: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
-    prompt: Mapped["Prompt"] = relationship(back_populates="responses")  # noqa: F821
+    reminder: Mapped["Reminder"] = relationship(back_populates="responses")  # noqa: F821
     user: Mapped["User"] = relationship(back_populates="responses")  # noqa: F821
     behaviors: Mapped[list["Behavior"]] = relationship(back_populates="response")  # noqa: F821
     outcomes: Mapped[list["Outcome"]] = relationship(back_populates="response")  # noqa: F821
@@ -50,7 +50,7 @@ class Response(Base, TimestampMixin, SoftDeleteMixin):
     __table_args__ = (
         Index("idx_responses_timestamp", "timestamp"),
         Index("idx_responses_category", "category"),
-        Index("idx_responses_prompt_id", "prompt_id"),
+        Index("idx_responses_reminder_id", "reminder_id"),
     )
 
     def __repr__(self) -> str:

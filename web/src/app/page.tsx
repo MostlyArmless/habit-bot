@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, Response as ApiResponse, QuickLogResponse, Prompt } from '@/lib/api';
+import { api, Response as ApiResponse, QuickLogResponse, Reminder } from '@/lib/api';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -48,7 +48,7 @@ function formatUpcomingTime(timestamp: string): string {
   if (diffMins < 60) return `in ${diffMins}m`;
   if (diffHours < 24) return `in ${diffHours}h ${diffMins % 60}m`;
 
-  // Show day of week and time for prompts more than 24h away
+  // Show day of week and time for reminders more than 24h away
   return date.toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
@@ -63,7 +63,7 @@ export default function Home() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [upcomingPrompts, setUpcomingPrompts] = useState<Prompt[]>([]);
+  const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([]);
 
   const userId = 1; // Default user for now
 
@@ -76,12 +76,12 @@ export default function Home() {
     }
   };
 
-  const loadUpcomingPrompts = async () => {
+  const loadUpcomingReminders = async () => {
     try {
-      const data = await api.getUpcomingPrompts(userId, 5);
-      setUpcomingPrompts(data);
+      const data = await api.getUpcomingReminders(userId, 5);
+      setUpcomingReminders(data);
     } catch (err) {
-      console.error('Failed to load upcoming prompts:', err);
+      console.error('Failed to load upcoming reminders:', err);
     }
   };
 
@@ -90,7 +90,7 @@ export default function Home() {
       .then(() => {
         setStatus('connected');
         loadResponses();
-        loadUpcomingPrompts();
+        loadUpcomingReminders();
       })
       .catch(() => setStatus('error'));
   }, []);
@@ -256,32 +256,32 @@ export default function Home() {
           )}
         </div>
 
-        {/* Upcoming Prompts */}
-        {upcomingPrompts.length > 0 && (
+        {/* Upcoming Reminders */}
+        {upcomingReminders.length > 0 && (
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b">
               <h2 className="font-semibold text-gray-700">Upcoming Check-ins</h2>
             </div>
             <div className="divide-y">
-              {upcomingPrompts.map((prompt) => (
-                <div key={prompt.id} className="p-3 flex items-center justify-between">
+              {upcomingReminders.map((reminder) => (
+                <div key={reminder.id} className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-blue-400" />
                     <div>
                       <div className="flex items-center gap-2">
-                        {prompt.categories?.map((cat) => (
+                        {reminder.categories?.map((cat) => (
                           <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
                             {cat.replace('_', ' ')}
                           </span>
                         ))}
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {Object.values(prompt.questions)[0]}
+                        {Object.values(reminder.questions)[0]}
                       </p>
                     </div>
                   </div>
                   <span className="text-sm text-gray-500 whitespace-nowrap">
-                    {formatUpcomingTime(prompt.scheduled_time)}
+                    {formatUpcomingTime(reminder.scheduled_time)}
                   </span>
                 </div>
               ))}

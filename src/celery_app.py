@@ -10,7 +10,7 @@ app = Celery(
     "habit_bot",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["src.tasks.llm_tasks", "src.tasks.prompt_tasks"],
+    include=["src.tasks.llm_tasks", "src.tasks.reminder_tasks"],
 )
 
 # Celery configuration
@@ -29,17 +29,17 @@ app.conf.update(
     result_expires=3600,  # 1 hour
     # Beat schedule for periodic tasks
     beat_schedule={
-        "schedule-prompts-every-minute": {
-            "task": "src.tasks.prompt_tasks.schedule_pending_prompts",
+        "schedule-reminders-every-minute": {
+            "task": "src.tasks.reminder_tasks.schedule_pending_reminders",
             "schedule": 60.0,  # Every minute
         },
         "process-pending-responses-every-30s": {
             "task": "src.tasks.llm_tasks.process_pending_responses",
             "schedule": 30.0,  # Every 30 seconds
         },
-        "create-daily-prompts": {
-            "task": "src.tasks.prompt_tasks.create_daily_prompts_for_all_users",
-            "schedule": 3600.0,  # Every hour (will skip if prompts already exist)
+        "create-daily-reminders": {
+            "task": "src.tasks.reminder_tasks.create_daily_reminders_for_all_users",
+            "schedule": 3600.0,  # Every hour (will skip if reminders already exist)
         },
     },
 )

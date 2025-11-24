@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from src.database import get_db
-from src.models.prompt import Prompt as PromptModel
-from src.models.prompt import PromptStatus
+from src.models.reminder import Reminder as ReminderModel
+from src.models.reminder import ReminderStatus
 from src.models.response import ProcessingStatus
 from src.models.response import Response as ResponseModel
 from src.schemas.response import Response, ResponseCreate
@@ -15,19 +15,19 @@ router = APIRouter(prefix="/api/v1/responses", tags=["responses"])
 
 @router.post("/", response_model=Response, status_code=201)
 def create_response(response: ResponseCreate, db: Session = Depends(get_db)) -> ResponseModel:
-    """Submit a response to a prompt."""
-    # Verify prompt exists
-    prompt = db.query(PromptModel).filter(PromptModel.id == response.prompt_id).first()
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+    """Submit a response to a reminder."""
+    # Verify reminder exists
+    reminder = db.query(ReminderModel).filter(ReminderModel.id == response.reminder_id).first()
+    if not reminder:
+        raise HTTPException(status_code=404, detail="Reminder not found")
 
     # Create the response
     db_response = ResponseModel(**response.model_dump())
     db.add(db_response)
 
-    # Update prompt status to completed if all questions answered
+    # Update reminder status to completed if all questions answered
     # For now, mark as completed on first response
-    prompt.status = PromptStatus.COMPLETED.value
+    reminder.status = ReminderStatus.COMPLETED.value
 
     db.commit()
     db.refresh(db_response)
@@ -37,7 +37,7 @@ def create_response(response: ResponseCreate, db: Session = Depends(get_db)) -> 
 @router.get("/", response_model=list[Response])
 def list_responses(
     user_id: int | None = None,
-    prompt_id: int | None = None,
+    reminder_id: int | None = None,
     category: str | None = None,
     processing_status: str | None = None,
     include_deleted: bool = False,
@@ -54,8 +54,8 @@ def list_responses(
 
     if user_id:
         query = query.filter(ResponseModel.user_id == user_id)
-    if prompt_id:
-        query = query.filter(ResponseModel.prompt_id == prompt_id)
+    if reminder_id:
+        query = query.filter(ResponseModel.reminder_id == reminder_id)
     if category:
         query = query.filter(ResponseModel.category == category)
     if processing_status:

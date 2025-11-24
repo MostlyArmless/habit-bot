@@ -82,25 +82,25 @@ class TestAndroidAppFlow:
         )
         assert response.status_code == 200
 
-    def test_fetch_and_respond_to_prompt_flow(self, client: TestClient):
-        """Test the flow of fetching a prompt and submitting a response.
+    def test_fetch_and_respond_to_reminder_flow(self, client: TestClient):
+        """Test the flow of fetching a reminder and submitting a response.
 
         Simulates:
-        1. Android app checking for pending prompts
-        2. Displaying the prompt to user
+        1. Android app checking for pending reminders
+        2. Displaying the reminder to user
         3. User submitting their response
         """
         # Setup: Create user
         user_response = client.post(
             "/api/v1/users/",
-            json={"name": "Prompt Flow User"},
+            json={"name": "Reminder Flow User"},
         )
         user_id = user_response.json()["id"]
 
-        # Setup: Create a prompt that's ready to be sent
+        # Setup: Create a reminder that's ready to be sent
         scheduled_time = datetime.now(timezone.utc).isoformat()
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": scheduled_time,
@@ -111,11 +111,11 @@ class TestAndroidAppFlow:
                 "categories": ["mental_state"],
             },
         )
-        assert prompt_response.status_code == 201
-        prompt = prompt_response.json()
+        assert reminder_response.status_code == 201
+        reminder = reminder_response.json()
 
-        # Android App Flow Step 1: Acknowledge the prompt
-        ack_response = client.post(f"/api/v1/prompts/{prompt['id']}/acknowledge")
+        # Android App Flow Step 1: Acknowledge the reminder
+        ack_response = client.post(f"/api/v1/reminders/{reminder['id']}/acknowledge")
         assert ack_response.status_code == 200
         assert ack_response.json()["status"] == "acknowledged"
 
@@ -123,7 +123,7 @@ class TestAndroidAppFlow:
         response = client.post(
             "/api/v1/responses/",
             json={
-                "prompt_id": prompt["id"],
+                "reminder_id": reminder["id"],
                 "user_id": user_id,
                 "question_text": "How are you feeling right now?",
                 "response_text": SAMPLE_RESPONSES["mental_state"]["response"],
@@ -134,14 +134,14 @@ class TestAndroidAppFlow:
         response_data = response.json()
         assert response_data["processing_status"] == "pending"
 
-        # Verify prompt is now completed
-        prompt_check = client.get(f"/api/v1/prompts/{prompt['id']}")
-        assert prompt_check.json()["status"] == "completed"
+        # Verify reminder is now completed
+        reminder_check = client.get(f"/api/v1/reminders/{reminder['id']}")
+        assert reminder_check.json()["status"] == "completed"
 
     def test_multiple_category_responses(self, client: TestClient):
         """Test submitting responses across multiple categories.
 
-        Simulates a user responding to a multi-category check-in prompt.
+        Simulates a user responding to a multi-category check-in reminder.
         """
         # Setup
         user_response = client.post(
@@ -151,8 +151,8 @@ class TestAndroidAppFlow:
         user_id = user_response.json()["id"]
 
         scheduled_time = datetime.now(timezone.utc).isoformat()
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": scheduled_time,
@@ -164,7 +164,7 @@ class TestAndroidAppFlow:
                 "categories": ["sleep", "nutrition", "mental_state"],
             },
         )
-        prompt_id = prompt_response.json()["id"]
+        reminder_id = reminder_response.json()["id"]
 
         # Submit responses for each category
         for category in ["sleep", "nutrition", "mental_state"]:
@@ -172,7 +172,7 @@ class TestAndroidAppFlow:
             response = client.post(
                 "/api/v1/responses/",
                 json={
-                    "prompt_id": prompt_id,
+                    "reminder_id": reminder_id,
                     "user_id": user_id,
                     "question_text": sample["question"],
                     "response_text": sample["response"],
@@ -182,7 +182,7 @@ class TestAndroidAppFlow:
             assert response.status_code == 201
 
         # Verify all responses were recorded
-        responses = client.get(f"/api/v1/responses/?prompt_id={prompt_id}")
+        responses = client.get(f"/api/v1/responses/?reminder_id={reminder_id}")
         assert len(responses.json()) == 3
 
     def test_list_user_history(self, client: TestClient):
@@ -197,10 +197,10 @@ class TestAndroidAppFlow:
         )
         user_id = user_response.json()["id"]
 
-        # Create multiple prompts and responses
+        # Create multiple reminders and responses
         for i, category in enumerate(["sleep", "mental_state", "nutrition"]):
-            prompt_response = client.post(
-                "/api/v1/prompts/",
+            reminder_response = client.post(
+                "/api/v1/reminders/",
                 json={
                     "user_id": user_id,
                     "scheduled_time": datetime.now(timezone.utc).isoformat(),
@@ -208,12 +208,12 @@ class TestAndroidAppFlow:
                     "categories": [category],
                 },
             )
-            prompt_id = prompt_response.json()["id"]
+            reminder_id = reminder_response.json()["id"]
 
             client.post(
                 "/api/v1/responses/",
                 json={
-                    "prompt_id": prompt_id,
+                    "reminder_id": reminder_id,
                     "user_id": user_id,
                     "question_text": SAMPLE_RESPONSES[category]["question"],
                     "response_text": SAMPLE_RESPONSES[category]["response"],
@@ -264,8 +264,8 @@ class TestAndroidFlowWithLLM:
         )
         user_id = user_response.json()["id"]
 
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": datetime.now(timezone.utc).isoformat(),
@@ -273,13 +273,13 @@ class TestAndroidFlowWithLLM:
                 "categories": ["sleep"],
             },
         )
-        prompt_id = prompt_response.json()["id"]
+        reminder_id = reminder_response.json()["id"]
 
         # Submit response
         response = client.post(
             "/api/v1/responses/",
             json={
-                "prompt_id": prompt_id,
+                "reminder_id": reminder_id,
                 "user_id": user_id,
                 "question_text": SAMPLE_RESPONSES["sleep"]["question"],
                 "response_text": SAMPLE_RESPONSES["sleep"]["response"],
@@ -319,8 +319,8 @@ class TestAndroidFlowWithLLM:
         )
         user_id = user_response.json()["id"]
 
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": datetime.now(timezone.utc).isoformat(),
@@ -328,12 +328,12 @@ class TestAndroidFlowWithLLM:
                 "categories": ["nutrition"],
             },
         )
-        prompt_id = prompt_response.json()["id"]
+        reminder_id = reminder_response.json()["id"]
 
         response = client.post(
             "/api/v1/responses/",
             json={
-                "prompt_id": prompt_id,
+                "reminder_id": reminder_id,
                 "user_id": user_id,
                 "question_text": SAMPLE_RESPONSES["nutrition"]["question"],
                 "response_text": SAMPLE_RESPONSES["nutrition"]["response"],
@@ -370,7 +370,7 @@ class TestAndroidFlowWithLLM:
 
         Simulates:
         1. User opens app
-        2. Gets a prompt
+        2. Gets a reminder
         3. Responds to multiple questions
         4. Responses are processed by LLM
         5. User can view their processed history
@@ -382,9 +382,9 @@ class TestAndroidFlowWithLLM:
         )
         user_id = user_response.json()["id"]
 
-        # Step 2: App creates a check-in prompt
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        # Step 2: App creates a check-in reminder
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": datetime.now(timezone.utc).isoformat(),
@@ -395,17 +395,17 @@ class TestAndroidFlowWithLLM:
                 "categories": ["mental_state", "stress_anxiety"],
             },
         )
-        prompt_id = prompt_response.json()["id"]
+        reminder_id = reminder_response.json()["id"]
 
         # Step 3: User acknowledges and responds
-        client.post(f"/api/v1/prompts/{prompt_id}/acknowledge")
+        client.post(f"/api/v1/reminders/{reminder_id}/acknowledge")
 
         response_ids = []
         for category in ["mental_state", "stress_anxiety"]:
             resp = client.post(
                 "/api/v1/responses/",
                 json={
-                    "prompt_id": prompt_id,
+                    "reminder_id": reminder_id,
                     "user_id": user_id,
                     "question_text": SAMPLE_RESPONSES[category]["question"],
                     "response_text": SAMPLE_RESPONSES[category]["response"],

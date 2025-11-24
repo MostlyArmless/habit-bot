@@ -17,7 +17,7 @@ class ResponseBase(BaseModel):
 class ResponseCreate(ResponseBase):
     """Schema for creating a response."""
 
-    prompt_id: int
+    reminder_id: int
     user_id: int
 
 
@@ -27,7 +27,7 @@ class Response(ResponseBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    prompt_id: int
+    reminder_id: int
     user_id: int
     response_structured: dict[str, Any] | None = None
     timestamp: datetime

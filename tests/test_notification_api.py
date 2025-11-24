@@ -33,31 +33,31 @@ class TestNotificationEndpoints:
 
         assert response.status_code == 500
 
-    def test_send_prompt_notification(self, client: TestClient):
-        """Test sending a prompt notification."""
+    def test_send_reminder_notification(self, client: TestClient):
+        """Test sending a reminder notification."""
         with patch(
-            "src.services.notifications.NotificationService.send_prompt_notification",
+            "src.services.notifications.NotificationService.send_reminder_notification",
             new_callable=AsyncMock,
             return_value={
                 "success": True,
-                "prompt_id": 123,
-                "prompt_url": "http://localhost:3000/prompt/123",
+                "reminder_id": 123,
+                "reminder_url": "http://localhost:3000/reminder/123",
             },
         ):
-            response = client.post("/api/v1/notifications/prompt/123")
+            response = client.post("/api/v1/notifications/reminder/123")
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "sent"
-        assert data["prompt_id"] == 123
-        assert "/prompt/123" in data["prompt_url"]
+        assert data["reminder_id"] == 123
+        assert "/reminder/123" in data["reminder_url"]
 
 
 class TestNotificationFlow:
     """Integration tests for the full notification flow."""
 
-    def test_create_prompt_and_notify(self, client: TestClient):
-        """Test creating a prompt and triggering notification."""
+    def test_create_reminder_and_notify(self, client: TestClient):
+        """Test creating a reminder and triggering notification."""
         # Create a user
         user_response = client.post(
             "/api/v1/users/",
@@ -65,9 +65,9 @@ class TestNotificationFlow:
         )
         user_id = user_response.json()["id"]
 
-        # Create a prompt
-        prompt_response = client.post(
-            "/api/v1/prompts/",
+        # Create a reminder
+        reminder_response = client.post(
+            "/api/v1/reminders/",
             json={
                 "user_id": user_id,
                 "scheduled_time": datetime.now(timezone.utc).isoformat(),
@@ -75,38 +75,38 @@ class TestNotificationFlow:
                 "categories": ["mental_state"],
             },
         )
-        assert prompt_response.status_code == 201
-        prompt_id = prompt_response.json()["id"]
+        assert reminder_response.status_code == 201
+        reminder_id = reminder_response.json()["id"]
 
         # Trigger notification (mocked)
         with patch(
-            "src.services.notifications.NotificationService.send_prompt_notification",
+            "src.services.notifications.NotificationService.send_reminder_notification",
             new_callable=AsyncMock,
             return_value={
                 "success": True,
-                "prompt_id": prompt_id,
-                "prompt_url": f"http://localhost:3000/prompt/{prompt_id}",
+                "reminder_id": reminder_id,
+                "reminder_url": f"http://localhost:3000/reminder/{reminder_id}",
             },
         ):
-            notify_response = client.post(f"/api/v1/notifications/prompt/{prompt_id}")
+            notify_response = client.post(f"/api/v1/notifications/reminder/{reminder_id}")
 
         assert notify_response.status_code == 200
-        assert notify_response.json()["prompt_id"] == prompt_id
+        assert notify_response.json()["reminder_id"] == reminder_id
 
-    def test_prompt_url_format(self, client: TestClient):
+    def test_reminder_url_format(self, client: TestClient):
         """Test that notification URL format is correct."""
         with patch(
-            "src.services.notifications.NotificationService.send_prompt_notification",
+            "src.services.notifications.NotificationService.send_reminder_notification",
             new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = {
                 "success": True,
-                "prompt_id": 42,
-                "prompt_url": "http://localhost:3000/prompt/42",
+                "reminder_id": 42,
+                "reminder_url": "http://localhost:3000/reminder/42",
             }
 
-            response = client.post("/api/v1/notifications/prompt/42")
+            response = client.post("/api/v1/notifications/reminder/42")
 
             assert response.status_code == 200
             # Verify URL follows expected PWA route structure
-            assert "/prompt/42" in response.json()["prompt_url"]
+            assert "/reminder/42" in response.json()["reminder_url"]

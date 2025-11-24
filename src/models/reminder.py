@@ -1,4 +1,4 @@
-"""Prompt model."""
+"""Reminder model for scheduled check-ins sent to users."""
 
 from datetime import datetime
 from enum import Enum
@@ -10,8 +10,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import Base
 
 
-class PromptStatus(str, Enum):
-    """Status of a prompt."""
+class ReminderStatus(str, Enum):
+    """Status of a reminder."""
 
     SCHEDULED = "scheduled"
     SENT = "sent"
@@ -20,29 +20,33 @@ class PromptStatus(str, Enum):
     MISSED = "missed"
 
 
-class Prompt(Base):
-    """Prompt model for storing scheduled and sent prompts."""
+class Reminder(Base):
+    """Reminder model for storing scheduled check-in notifications.
 
-    __tablename__ = "prompts"
+    Reminders are the notifications sent to users throughout the day
+    that they must respond to via a questionnaire.
+    """
+
+    __tablename__ = "reminders"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     scheduled_time: Mapped[datetime] = mapped_column(nullable=False)
     sent_time: Mapped[datetime | None] = mapped_column(nullable=True)
     questions: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default=PromptStatus.SCHEDULED.value)
+    status: Mapped[str] = mapped_column(String(50), default=ReminderStatus.SCHEDULED.value)
     categories: Mapped[list[str] | None] = mapped_column(ARRAY(String(100)), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="prompts")  # noqa: F821
-    responses: Mapped[list["Response"]] = relationship(back_populates="prompt")  # noqa: F821
+    user: Mapped["User"] = relationship(back_populates="reminders")  # noqa: F821
+    responses: Mapped[list["Response"]] = relationship(back_populates="reminder")  # noqa: F821
 
     __table_args__ = (
-        Index("idx_prompts_scheduled_time", "scheduled_time"),
-        Index("idx_prompts_status", "status"),
-        Index("idx_prompts_user_id", "user_id"),
+        Index("idx_reminders_scheduled_time", "scheduled_time"),
+        Index("idx_reminders_status", "status"),
+        Index("idx_reminders_user_id", "user_id"),
     )
 
     def __repr__(self) -> str:
-        return f"<Prompt(id={self.id}, status='{self.status}')>"
+        return f"<Reminder(id={self.id}, status='{self.status}')>"

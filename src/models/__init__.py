@@ -8,7 +8,7 @@ from src.models.garmin_data import GarminData
 from src.models.historical_gap import HistoricalGap
 from src.models.insight import Insight
 from src.models.outcome import Outcome
-from src.models.prompt import Prompt
+from src.models.reminder import Reminder
 from src.models.response import Response
 from src.models.user import User
 
@@ -21,7 +21,7 @@ __all__ = [
     "HistoricalGap",
     "Insight",
     "Outcome",
-    "Prompt",
+    "Reminder",
     "Response",
     "User",
 ]

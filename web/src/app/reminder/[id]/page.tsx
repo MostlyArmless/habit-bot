@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, Prompt } from '@/lib/api';
+import { api, Reminder } from '@/lib/api';
 
 interface QuestionResponse {
   questionKey: string;
@@ -11,25 +11,25 @@ interface QuestionResponse {
   category: string;
 }
 
-export default function PromptPage() {
+export default function ReminderPage() {
   const params = useParams();
   const router = useRouter();
-  const promptId = Number(params.id);
+  const reminderId = Number(params.id);
 
-  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [reminder, setReminder] = useState<Reminder | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const loadPrompt = useCallback(async () => {
+  const loadReminder = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await api.getPrompt(promptId);
-      setPrompt(data);
+      const data = await api.getReminder(reminderId);
+      setReminder(data);
 
       // Initialize responses object
       const initialResponses: Record<string, string> = {};
@@ -38,36 +38,36 @@ export default function PromptPage() {
       });
       setResponses(initialResponses);
 
-      // Acknowledge the prompt
+      // Acknowledge the reminder
       if (data.status === 'sent') {
-        await api.acknowledgePrompt(promptId);
+        await api.acknowledgeReminder(reminderId);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load prompt');
+      setError(err instanceof Error ? err.message : 'Failed to load reminder');
     } finally {
       setLoading(false);
     }
-  }, [promptId]);
+  }, [reminderId]);
 
   useEffect(() => {
-    if (promptId) {
-      loadPrompt();
+    if (reminderId) {
+      loadReminder();
     }
-  }, [promptId, loadPrompt]);
+  }, [reminderId, loadReminder]);
 
   const handleResponseChange = (key: string, value: string) => {
     setResponses((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async () => {
-    if (!prompt) return;
+    if (!reminder) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
       // Submit each question's response
-      const questionEntries = Object.entries(prompt.questions);
+      const questionEntries = Object.entries(reminder.questions);
 
       for (let i = 0; i < questionEntries.length; i++) {
         const [key, questionText] = questionEntries[i];
@@ -77,12 +77,12 @@ export default function PromptPage() {
           continue; // Skip empty responses
         }
 
-        // Determine category from prompt categories
-        const category = prompt.categories[i % prompt.categories.length] || 'general';
+        // Determine category from reminder categories
+        const category = reminder.categories[i % reminder.categories.length] || 'general';
 
         const response = await api.submitResponse({
-          prompt_id: promptId,
-          user_id: prompt.user_id,
+          reminder_id: reminderId,
+          user_id: reminder.user_id,
           question_text: questionText,
           response_text: responseText,
           category: category,
@@ -122,7 +122,7 @@ export default function PromptPage() {
             <h1 className="text-xl font-semibold text-gray-800 mb-2">Error</h1>
             <p className="text-gray-600 mb-4">{error}</p>
             <button
-              onClick={loadPrompt}
+              onClick={loadReminder}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
               Try Again
@@ -151,17 +151,17 @@ export default function PromptPage() {
     );
   }
 
-  if (!prompt) {
+  if (!reminder) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="text-center">
-          <p className="text-gray-600">Prompt not found</p>
+          <p className="text-gray-600">Reminder not found</p>
         </div>
       </div>
     );
   }
 
-  const questions = Object.entries(prompt.questions);
+  const questions = Object.entries(reminder.questions);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -171,7 +171,7 @@ export default function PromptPage() {
           <div className="bg-blue-600 text-white px-6 py-4">
             <h1 className="text-xl font-semibold">Check-in</h1>
             <p className="text-blue-100 text-sm mt-1">
-              {prompt.categories.join(', ')}
+              {reminder.categories.join(', ')}
             </p>
           </div>
 
@@ -211,7 +211,7 @@ export default function PromptPage() {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-4">
-          Prompt #{promptId}
+          Reminder #{reminderId}
         </p>
       </div>
     </div>

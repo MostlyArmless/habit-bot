@@ -18,26 +18,26 @@ class TestNotificationService:
         assert "ntfy.sh" in url or "localhost" in url
         assert service.topic in url
 
-    def test_get_prompt_url(self):
-        """Test prompt URL construction."""
+    def test_get_reminder_url(self):
+        """Test reminder URL construction."""
         service = NotificationService()
-        url = service._get_prompt_url(123)
-        assert "/prompt/123" in url
+        url = service._get_reminder_url(123)
+        assert "/reminder/123" in url
 
     @pytest.mark.asyncio
-    async def test_send_prompt_notification_success(self):
-        """Test successful prompt notification."""
+    async def test_send_reminder_notification_success(self):
+        """Test successful reminder notification."""
         service = NotificationService()
 
         mock_response = AsyncMock()
         mock_response.raise_for_status = AsyncMock()
 
         with patch.object(httpx.AsyncClient, "post", return_value=mock_response) as mock_post:
-            result = await service.send_prompt_notification(prompt_id=42)
+            result = await service.send_reminder_notification(reminder_id=42)
 
         assert result["success"] is True
-        assert result["prompt_id"] == 42
-        assert "/prompt/42" in result["prompt_url"]
+        assert result["reminder_id"] == 42
+        assert "/reminder/42" in result["reminder_url"]
 
         # Verify the call was made with correct parameters
         mock_post.assert_called_once()
@@ -45,8 +45,8 @@ class TestNotificationService:
         assert "Time to check in" in str(call_kwargs)
 
     @pytest.mark.asyncio
-    async def test_send_prompt_notification_failure(self):
-        """Test prompt notification failure handling."""
+    async def test_send_reminder_notification_failure(self):
+        """Test reminder notification failure handling."""
         service = NotificationService()
 
         with patch.object(
@@ -54,10 +54,10 @@ class TestNotificationService:
             "post",
             side_effect=httpx.HTTPError("Connection failed"),
         ):
-            result = await service.send_prompt_notification(prompt_id=42)
+            result = await service.send_reminder_notification(reminder_id=42)
 
         assert result["success"] is False
-        assert result["prompt_id"] == 42
+        assert result["reminder_id"] == 42
         assert "error" in result
 
     @pytest.mark.asyncio

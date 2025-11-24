@@ -1,4 +1,4 @@
-"""Prompt schemas."""
+"""Reminder schemas."""
 
 from datetime import datetime
 from typing import Any
@@ -6,29 +6,29 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 
-class PromptBase(BaseModel):
-    """Base prompt schema."""
+class ReminderBase(BaseModel):
+    """Base reminder schema."""
 
     scheduled_time: datetime
     questions: dict[str, Any]
     categories: list[str] | None = None
 
 
-class PromptCreate(PromptBase):
-    """Schema for creating a prompt."""
+class ReminderCreate(ReminderBase):
+    """Schema for creating a reminder."""
 
     user_id: int
 
 
-class PromptUpdate(BaseModel):
-    """Schema for updating a prompt."""
+class ReminderUpdate(BaseModel):
+    """Schema for updating a reminder."""
 
     status: str | None = None
     sent_time: datetime | None = None
 
 
-class Prompt(PromptBase):
-    """Schema for prompt response."""
+class Reminder(ReminderBase):
+    """Schema for reminder response."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -39,8 +39,8 @@ class Prompt(PromptBase):
     created_at: datetime
 
 
-class PromptWithResponses(Prompt):
-    """Prompt with its responses."""
+class ReminderWithResponses(Reminder):
+    """Reminder with its responses."""
 
     responses: list["ResponseSummary"] = []
 
@@ -48,4 +48,4 @@ class PromptWithResponses(Prompt):
 # Import here to avoid circular imports
 from src.schemas.response import ResponseSummary  # noqa: E402
 
-PromptWithResponses.model_rebuild()
+ReminderWithResponses.model_rebuild()

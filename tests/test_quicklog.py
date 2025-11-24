@@ -177,8 +177,8 @@ def test_quick_log_category_detection_sleep(client: TestClient):
     assert "category" in response.json()
 
 
-def test_quick_log_creates_prompt_and_response(client: TestClient):
-    """Test that quick log creates both a prompt and response in the database."""
+def test_quick_log_creates_reminder_and_response(client: TestClient):
+    """Test that quick log creates both a reminder and response in the database."""
     user = create_test_user(client)
 
     quick_log_response = client.post(
@@ -197,16 +197,16 @@ def test_quick_log_creates_prompt_and_response(client: TestClient):
     assert response_detail.status_code == 200
     response_data = response_detail.json()
 
-    # Verify the response has a linked prompt
-    assert response_data["prompt_id"] is not None
+    # Verify the response has a linked reminder
+    assert response_data["reminder_id"] is not None
 
-    # Verify the prompt exists
-    prompt_detail = client.get(f"/api/v1/prompts/{response_data['prompt_id']}")
-    assert prompt_detail.status_code == 200
-    prompt_data = prompt_detail.json()
+    # Verify the reminder exists
+    reminder_detail = client.get(f"/api/v1/reminders/{response_data['reminder_id']}")
+    assert reminder_detail.status_code == 200
+    reminder_data = reminder_detail.json()
 
-    # Prompt should be marked as completed (ad-hoc prompt)
-    assert prompt_data["status"] == "completed"
+    # Reminder should be marked as completed (ad-hoc reminder)
+    assert reminder_data["status"] == "completed"
 
 
 def test_quick_log_empty_text(client: TestClient):

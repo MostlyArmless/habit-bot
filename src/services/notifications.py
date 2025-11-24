@@ -24,28 +24,28 @@ class NotificationService:
         """Get the full ntfy URL for publishing."""
         return f"{self.server}/{self.topic}"
 
-    def _get_prompt_url(self, prompt_id: int) -> str:
-        """Get the PWA URL for a specific prompt."""
-        return f"{self.pwa_base_url}/prompt/{prompt_id}"
+    def _get_reminder_url(self, reminder_id: int) -> str:
+        """Get the PWA URL for a specific reminder."""
+        return f"{self.pwa_base_url}/reminder/{reminder_id}"
 
-    async def send_prompt_notification(self, prompt_id: int) -> dict[str, Any]:
-        """Send a notification for a prompt check-in.
+    async def send_reminder_notification(self, reminder_id: int) -> dict[str, Any]:
+        """Send a notification for a reminder check-in.
 
         Args:
-            prompt_id: ID of the prompt to notify about
+            reminder_id: ID of the reminder to notify about
 
         Returns:
             dict with success status and any error info
         """
-        prompt_url = self._get_prompt_url(prompt_id)
+        reminder_url = self._get_reminder_url(reminder_id)
 
         # Generic message with no PII
         headers = {
             "Title": "Time to check in",
             "Priority": "high",
             "Tags": "clipboard",
-            "Click": prompt_url,
-            "Actions": f"view, Open, {prompt_url}",
+            "Click": reminder_url,
+            "Actions": f"view, Open, {reminder_url}",
         }
 
         try:
@@ -57,18 +57,18 @@ class NotificationService:
                 )
                 response.raise_for_status()
 
-                logger.info(f"Sent notification for prompt {prompt_id}")
+                logger.info(f"Sent notification for reminder {reminder_id}")
                 return {
                     "success": True,
-                    "prompt_id": prompt_id,
-                    "prompt_url": prompt_url,
+                    "reminder_id": reminder_id,
+                    "reminder_url": reminder_url,
                 }
 
         except httpx.HTTPError as e:
-            logger.error(f"Failed to send notification for prompt {prompt_id}: {e}")
+            logger.error(f"Failed to send notification for reminder {reminder_id}: {e}")
             return {
                 "success": False,
-                "prompt_id": prompt_id,
+                "reminder_id": reminder_id,
                 "error": str(e),
             }
 

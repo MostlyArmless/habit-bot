@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, Prompt } from '@/lib/api';
+import { api, Reminder } from '@/lib/api';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -53,13 +53,13 @@ const CATEGORIES = [
 ];
 
 export default function SchedulePage() {
-  const [upcomingPrompts, setUpcomingPrompts] = useState<Prompt[]>([]);
+  const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateMessage, setGenerateMessage] = useState<string | null>(null);
-  const [newPrompt, setNewPrompt] = useState({
+  const [newReminder, setNewReminder] = useState({
     scheduledTime: '',
     category: 'mental_state',
     question: '',
@@ -67,38 +67,38 @@ export default function SchedulePage() {
 
   const userId = 1;
 
-  const loadPrompts = async () => {
+  const loadReminders = async () => {
     try {
-      const data = await api.getUpcomingPrompts(userId, 20);
-      setUpcomingPrompts(data);
+      const data = await api.getUpcomingReminders(userId, 20);
+      setUpcomingReminders(data);
     } catch (err) {
-      console.error('Failed to load prompts:', err);
+      console.error('Failed to load reminders:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPrompts();
+    loadReminders();
   }, []);
 
-  const handleGeneratePrompts = async () => {
+  const handleGenerateReminders = async () => {
     setGenerating(true);
     setGenerateMessage(null);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/prompts/generate?user_id=${userId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/reminders/generate?user_id=${userId}`, {
         method: 'POST',
       });
 
       const result = await response.json();
       if (response.ok) {
         if (result.scheduled > 0) {
-          setGenerateMessage(`Created ${result.scheduled} new prompts`);
+          setGenerateMessage(`Created ${result.scheduled} new reminders`);
         } else {
-          setGenerateMessage('No new prompts needed - schedule is up to date');
+          setGenerateMessage('No new reminders needed - schedule is up to date');
         }
-        loadPrompts();
+        loadReminders();
       } else {
         setGenerateMessage(`Error: ${result.detail || 'Failed to generate'}`);
       }
@@ -109,29 +109,29 @@ export default function SchedulePage() {
     }
   };
 
-  const handleCreatePrompt = async () => {
-    if (!newPrompt.scheduledTime || !newPrompt.question) return;
+  const handleCreateReminder = async () => {
+    if (!newReminder.scheduledTime || !newReminder.question) return;
 
     setCreating(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/prompts/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/v1/reminders/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          scheduled_time: new Date(newPrompt.scheduledTime).toISOString(),
-          questions: { q1: newPrompt.question },
-          categories: [newPrompt.category],
+          scheduled_time: new Date(newReminder.scheduledTime).toISOString(),
+          questions: { q1: newReminder.question },
+          categories: [newReminder.category],
         }),
       });
 
       if (response.ok) {
-        setNewPrompt({ scheduledTime: '', category: 'mental_state', question: '' });
+        setNewReminder({ scheduledTime: '', category: 'mental_state', question: '' });
         setShowCreateForm(false);
-        loadPrompts();
+        loadReminders();
       }
     } catch (err) {
-      console.error('Failed to create prompt:', err);
+      console.error('Failed to create reminder:', err);
     } finally {
       setCreating(false);
     }
@@ -160,11 +160,11 @@ export default function SchedulePage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Schedule</h1>
-            <p className="text-gray-500 text-sm">Manage your check-in prompts</p>
+            <p className="text-gray-500 text-sm">Manage your check-in reminders</p>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleGeneratePrompts}
+              onClick={handleGenerateReminders}
               disabled={generating}
               className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
@@ -173,8 +173,8 @@ export default function SchedulePage() {
             <button
               onClick={() => {
                 setShowCreateForm(!showCreateForm);
-                if (!newPrompt.scheduledTime) {
-                  setNewPrompt(prev => ({ ...prev, scheduledTime: getDefaultTime() }));
+                if (!newReminder.scheduledTime) {
+                  setNewReminder(prev => ({ ...prev, scheduledTime: getDefaultTime() }));
                 }
               }}
               className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
@@ -196,14 +196,14 @@ export default function SchedulePage() {
         {/* Create Form */}
         {showCreateForm && (
           <div className="bg-white rounded-lg shadow p-4 space-y-4">
-            <h2 className="font-semibold text-gray-700">Create New Prompt</h2>
+            <h2 className="font-semibold text-gray-700">Create New Reminder</h2>
 
             <div>
               <label className="block text-sm text-gray-600 mb-1">When</label>
               <input
                 type="datetime-local"
-                value={newPrompt.scheduledTime}
-                onChange={(e) => setNewPrompt(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                value={newReminder.scheduledTime}
+                onChange={(e) => setNewReminder(prev => ({ ...prev, scheduledTime: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900"
               />
             </div>
@@ -211,8 +211,8 @@ export default function SchedulePage() {
             <div>
               <label className="block text-sm text-gray-600 mb-1">Category</label>
               <select
-                value={newPrompt.category}
-                onChange={(e) => setNewPrompt(prev => ({ ...prev, category: e.target.value }))}
+                value={newReminder.category}
+                onChange={(e) => setNewReminder(prev => ({ ...prev, category: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900"
               >
                 {CATEGORIES.map((cat) => (
@@ -227,52 +227,52 @@ export default function SchedulePage() {
               <label className="block text-sm text-gray-600 mb-1">Question</label>
               <input
                 type="text"
-                value={newPrompt.question}
-                onChange={(e) => setNewPrompt(prev => ({ ...prev, question: e.target.value }))}
+                value={newReminder.question}
+                onChange={(e) => setNewReminder(prev => ({ ...prev, question: e.target.value }))}
                 placeholder="e.g., How are you feeling right now?"
                 className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900"
               />
             </div>
 
             <button
-              onClick={handleCreatePrompt}
-              disabled={creating || !newPrompt.scheduledTime || !newPrompt.question}
+              onClick={handleCreateReminder}
+              disabled={creating || !newReminder.scheduledTime || !newReminder.question}
               className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-blue-700"
             >
-              {creating ? 'Creating...' : 'Create Prompt'}
+              {creating ? 'Creating...' : 'Create Reminder'}
             </button>
           </div>
         )}
 
-        {/* Upcoming Prompts */}
+        {/* Upcoming Reminders */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 border-b">
-            <h2 className="font-semibold text-gray-700">Upcoming Prompts</h2>
+            <h2 className="font-semibold text-gray-700">Upcoming Reminders</h2>
           </div>
 
-          {upcomingPrompts.length === 0 ? (
+          {upcomingReminders.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
-              No scheduled prompts. Create one above!
+              No scheduled reminders. Create one above!
             </div>
           ) : (
             <div className="divide-y">
-              {upcomingPrompts.map((prompt) => (
-                <div key={prompt.id} className="p-4">
+              {upcomingReminders.map((reminder) => (
+                <div key={reminder.id} className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        {prompt.categories?.map((cat) => (
+                        {reminder.categories?.map((cat) => (
                           <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
                             {cat.replace(/_/g, ' ')}
                           </span>
                         ))}
                       </div>
                       <p className="text-sm text-gray-700">
-                        {Object.values(prompt.questions)[0]}
+                        {Object.values(reminder.questions)[0]}
                       </p>
                     </div>
                     <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                      {formatScheduledTime(prompt.scheduled_time)}
+                      {formatScheduledTime(reminder.scheduled_time)}
                     </span>
                   </div>
                 </div>
