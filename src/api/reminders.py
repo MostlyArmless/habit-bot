@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -10,6 +10,7 @@ from src.models.reminder import Reminder as ReminderModel
 from src.models.reminder import ReminderStatus
 from src.models.user import User as UserModel
 from src.schemas.reminder import Reminder, ReminderCreate, ReminderUpdate, ReminderWithResponses
+from src.services.reminder_intelligence import ReminderIntelligenceService
 
 router = APIRouter(prefix="/api/v1/reminders", tags=["reminders"])
 
@@ -115,15 +116,17 @@ def update_reminder(
 
 
 @router.post("/generate", response_model=dict)
-def generate_reminders_for_user(
+async def generate_reminders_for_user(
     user_id: int = Query(..., description="User ID to generate reminders for"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Generate scheduled reminders for a user based on their wake/screens-off times.
+    """Generate intelligent reminders based on response history gaps.
 
-    This creates reminders for today that haven't already been scheduled.
+    Analyzes recent responses to identify which categories need coverage,
+    then generates targeted questions using LLM.
+
     Reminders are only scheduled between wake_time and screens_off_time.
-    All times are handled in the user's local timezone and stored as UTC.
     """
     from datetime import time as dt_time, timezone
 
@@ -145,24 +148,26 @@ def generate_reminders_for_user(
     now_local = now_utc.astimezone(user_tz)
     today_local = now_local.date()
 
-    categories = [
-        "sleep",
-        "nutrition",
-        "physical_activity",
-        "stress_anxiety",
-    ]
-
-    # Calculate evenly spaced reminder times between wake and screens-off
+    # Calculate time window
     wake_minutes = wake_time.hour * 60 + wake_time.minute
     end_minutes = end_time.hour * 60 + end_time.minute
     if end_minutes <= wake_minutes:
         end_minutes += 24 * 60  # Handle overnight span
 
-    num_reminders = len(categories)
     total_minutes = end_minutes - wake_minutes
+
+    # Use intelligence service to generate smart reminder
+    intelligence_service = ReminderIntelligenceService()
+    reminder_data = await intelligence_service.generate_intelligent_reminder(user_id, db)
+
+    # Generate 3-4 reminder times spread throughout the day
+    num_reminders = min(4, max(2, len(reminder_data["questions"]) // 3))
     interval = total_minutes // (num_reminders + 1)
 
     scheduled = 0
+    questions_per_reminder = len(reminder_data["questions"]) // num_reminders
+    question_keys = list(reminder_data["questions"].keys())
+
     for i in range(1, num_reminders + 1):
         minutes = wake_minutes + interval * i
         hours = (minutes // 60) % 24
@@ -189,21 +194,40 @@ def generate_reminders_for_user(
         if existing:
             continue
 
-        # Assign category based on index (cycling through categories)
-        category = categories[(i - 1) % len(categories)]
+        # Distribute questions across reminders
+        start_idx = (i - 1) * questions_per_reminder
+        end_idx = start_idx + questions_per_reminder
+        if i == num_reminders:
+            # Last reminder gets any remaining questions
+            end_idx = len(question_keys)
+
+        reminder_questions = {
+            key: reminder_data["questions"][key]
+            for key in question_keys[start_idx:end_idx]
+        }
+
+        if not reminder_questions:
+            continue
 
         reminder = ReminderModel(
             user_id=user_id,
             scheduled_time=scheduled_utc,
-            questions={"q1": f"How are you doing with your {category.replace('_', ' ')}?"},
-            categories=[category],
+            questions=reminder_questions,
+            categories=reminder_data["categories"],
             status=ReminderStatus.SCHEDULED.value,
         )
         db.add(reminder)
         scheduled += 1
 
     db.commit()
-    return {"success": True, "scheduled": scheduled}
+
+    return {
+        "success": True,
+        "scheduled": scheduled,
+        "total_questions": len(reminder_data["questions"]),
+        "categories_covered": reminder_data["categories"],
+        "reasoning": reminder_data["reasoning"],
+    }
 
 
 @router.post("/{reminder_id}/acknowledge", response_model=Reminder)
