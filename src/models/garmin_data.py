@@ -16,6 +16,7 @@ class GarminMetricType(str, Enum):
     """Types of Garmin metrics we track."""
 
     SLEEP = "sleep"
+    SLEEP_SCORE = "sleep_score"
     HRV = "hrv"
     RESTING_HR = "resting_hr"
     BODY_BATTERY = "body_battery"

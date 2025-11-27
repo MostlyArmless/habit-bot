@@ -152,6 +152,7 @@ class GarminService:
         # Process each metric type
         metric_configs = [
             (GarminMetricType.SLEEP, "sleep", self._extract_sleep_value),
+            (GarminMetricType.SLEEP_SCORE, "sleep", self._extract_sleep_score_value),
             (GarminMetricType.HRV, "hrv", self._extract_hrv_value),
             (GarminMetricType.RESTING_HR, "resting_hr", self._extract_resting_hr_value),
             (GarminMetricType.BODY_BATTERY, "body_battery", self._extract_body_battery_value),
@@ -229,6 +230,16 @@ class GarminService:
         """Extract total sleep duration in hours."""
         if duration := data.get("dailySleepDTO", {}).get("sleepTimeSeconds"):
             return Decimal(str(round(duration / 3600, 2)))
+        return None
+
+    @staticmethod
+    def _extract_sleep_score_value(data: dict) -> Decimal | None:
+        """Extract sleep score (0-100)."""
+        if score := data.get("dailySleepDTO", {}).get("sleepScores", {}).get("overall", {}).get("value"):
+            return Decimal(str(score))
+        # Alternative location for sleep score
+        if score := data.get("dailySleepDTO", {}).get("overallSleepScore"):
+            return Decimal(str(score))
         return None
 
     @staticmethod
