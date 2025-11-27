@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, Response as ApiResponse, QuickLogResponse, Reminder } from '@/lib/api';
+import { api, Response as ApiResponse, QuickLogResponse, Reminder, Summaries } from '@/lib/api';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -64,6 +64,7 @@ export default function Home() {
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([]);
+  const [summaries, setSummaries] = useState<Summaries | null>(null);
 
   const userId = 1; // Default user for now
 
@@ -85,12 +86,22 @@ export default function Home() {
     }
   };
 
+  const loadSummaries = async () => {
+    try {
+      const data = await api.getSummaries(userId);
+      setSummaries(data);
+    } catch (err) {
+      console.error('Failed to load summaries:', err);
+    }
+  };
+
   useEffect(() => {
     api.healthCheck()
       .then(() => {
         setStatus('connected');
         loadResponses();
         loadUpcomingReminders();
+        loadSummaries();
       })
       .catch(() => setStatus('error'));
   }, []);
@@ -124,6 +135,7 @@ export default function Home() {
       setBackdateValue('');
       setShowBackdate(false);
       loadResponses();
+      loadSummaries();
     } catch (err) {
       console.error('Quick log failed:', err);
       alert('Failed to submit. Please try again.');
@@ -285,6 +297,74 @@ export default function Home() {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Activity Summaries */}
+        {summaries && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b">
+              <h2 className="font-semibold text-gray-700">Activity Summaries</h2>
+            </div>
+            <div className="divide-y">
+              {/* Today */}
+              {summaries.today.entry_count > 0 && (
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Today</h3>
+                    <span className="text-xs text-gray-500">{summaries.today.entry_count} entries</span>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{summaries.today.summary}</p>
+                  {summaries.today.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {summaries.today.categories.map((cat) => (
+                        <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
+                          {cat.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Yesterday */}
+              {summaries.yesterday.entry_count > 0 && (
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Yesterday</h3>
+                    <span className="text-xs text-gray-500">{summaries.yesterday.entry_count} entries</span>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{summaries.yesterday.summary}</p>
+                  {summaries.yesterday.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {summaries.yesterday.categories.map((cat) => (
+                        <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
+                          {cat.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Past Week */}
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-gray-700">Past 7 Days</h3>
+                  <span className="text-xs text-gray-500">{summaries.week.entry_count} entries</span>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{summaries.week.summary}</p>
+                {summaries.week.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {summaries.week.categories.map((cat) => (
+                      <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
+                        {cat.replace('_', ' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

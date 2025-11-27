@@ -18,6 +18,7 @@ from src.api import (
     quicklog_router,
     reminders_router,
     responses_router,
+    summaries_router,
     users_router,
 )
 from src.config import get_settings
@@ -79,6 +80,7 @@ app.include_router(llm_router)
 app.include_router(notifications_router)
 app.include_router(quicklog_router)
 app.include_router(garmin_router)
+app.include_router(summaries_router)
 
 
 @app.get("/")

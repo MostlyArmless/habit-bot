@@ -45,6 +45,20 @@ export interface QuickLogResponse {
   processing_status: string;
 }
 
+export interface Summary {
+  period: string;
+  period_label: string;
+  summary: string;
+  entry_count: number;
+  categories: string[];
+}
+
+export interface Summaries {
+  today: Summary;
+  yesterday: Summary;
+  week: Summary;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -141,6 +155,10 @@ class ApiClient {
 
   async getUpcomingReminders(userId: number, limit: number = 10): Promise<Reminder[]> {
     return this.fetch<Reminder[]>(`/api/v1/reminders/upcoming?user_id=${userId}&limit=${limit}`);
+  }
+
+  async getSummaries(userId: number): Promise<Summaries> {
+    return this.fetch<Summaries>(`/api/v1/summaries/?user_id=${userId}`);
   }
 }
 
