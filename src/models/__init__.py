@@ -10,6 +10,7 @@ from src.models.insight import Insight
 from src.models.outcome import Outcome
 from src.models.reminder import Reminder
 from src.models.response import Response
+from src.models.summary import Summary
 from src.models.user import User
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "Outcome",
     "Reminder",
     "Response",
+    "Summary",
     "User",
 ]

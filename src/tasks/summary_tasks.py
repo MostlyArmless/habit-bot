@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from src.celery_worker import celery_app
+from src.celery_app import app as celery_app
 from src.database import SessionLocal
 from src.models.user import User as UserModel
 from src.services.summary import SummaryService
