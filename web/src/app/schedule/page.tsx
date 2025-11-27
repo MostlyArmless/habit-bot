@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, Reminder } from '@/lib/api';
+import { formatUpcomingTime } from '@/lib/dateUtils';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -15,29 +16,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
-}
-
-function formatScheduledTime(timestamp: string): string {
-  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-  const date = new Date(utcTimestamp);
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-
-  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
-  if (diffMins < 0) return `${timeStr} (past)`;
-  if (diffMins < 60) return `${timeStr} (in ${diffMins}m)`;
-  if (diffHours < 24) return `${timeStr} (in ${diffHours}h)`;
-
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  });
 }
 
 const CATEGORIES = [
@@ -272,7 +250,7 @@ export default function SchedulePage() {
                       </p>
                     </div>
                     <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                      {formatScheduledTime(reminder.scheduled_time)}
+                      {formatUpcomingTime(reminder.scheduled_time)}
                     </span>
                   </div>
                 </div>

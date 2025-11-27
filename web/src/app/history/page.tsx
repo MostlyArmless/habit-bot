@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, Response as ApiResponse } from '@/lib/api';
+import { formatDateTime } from '@/lib/dateUtils';
 
 const CATEGORY_COLORS: Record<string, string> = {
   sleep: 'bg-indigo-100 text-indigo-800',
@@ -31,18 +32,6 @@ const CATEGORIES = [
 
 function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
-}
-
-function formatDate(timestamp: string): string {
-  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-  const date = new Date(utcTimestamp);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }
 
 export default function HistoryPage() {
@@ -152,7 +141,7 @@ export default function HistoryPage() {
                           {response.category?.replace(/_/g, ' ')}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {formatDate(response.timestamp)}
+                          {formatDateTime(response.timestamp)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-700">{response.response_text}</p>
