@@ -88,10 +88,12 @@ export default function Home() {
 
   const loadSummaries = async () => {
     try {
+      console.log('[DEBUG] Loading summaries for user:', userId);
       const data = await api.getSummaries(userId);
+      console.log('[DEBUG] Summaries loaded successfully:', data);
       setSummaries(data);
     } catch (err) {
-      console.error('Failed to load summaries:', err);
+      console.error('[ERROR] Failed to load summaries:', err);
     }
   };
 
@@ -302,19 +304,23 @@ export default function Home() {
         )}
 
         {/* Activity Summaries */}
-        {summaries && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <h2 className="font-semibold text-gray-700">Activity Summaries</h2>
-            </div>
-            <div className="divide-y">
-              {/* Today */}
-              {summaries.today.entry_count > 0 && (
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-gray-700">Today</h3>
-                    <span className="text-xs text-gray-500">{summaries.today.entry_count} entries</span>
-                  </div>
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-gray-700">Activity Summaries</h2>
+          </div>
+          <div className="divide-y">
+            {/* Today */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-700">Today</h3>
+                {summaries?.today ? (
+                  <span className="text-xs text-gray-500">{summaries.today.entry_count} entries</span>
+                ) : (
+                  <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                )}
+              </div>
+              {summaries?.today ? (
+                <>
                   <p className="text-sm text-gray-600 leading-relaxed">{summaries.today.summary}</p>
                   {summaries.today.categories.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
@@ -325,39 +331,26 @@ export default function Home() {
                       ))}
                     </div>
                   )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
                 </div>
               )}
+            </div>
 
-              {/* Yesterday */}
-              {summaries.yesterday.entry_count > 0 && (
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-gray-700">Yesterday</h3>
-                    <span className="text-xs text-gray-500">{summaries.yesterday.entry_count} entries</span>
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{summaries.yesterday.summary}</p>
-                  {summaries.yesterday.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {summaries.yesterday.categories.map((cat) => (
-                        <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
-                          {cat.replace('_', ' ')}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Past Week */}
+            {/* Yesterday */}
+            {summaries?.yesterday && summaries.yesterday.entry_count > 0 && (
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-700">Past 7 Days</h3>
-                  <span className="text-xs text-gray-500">{summaries.week.entry_count} entries</span>
+                  <h3 className="text-sm font-medium text-gray-700">Yesterday</h3>
+                  <span className="text-xs text-gray-500">{summaries.yesterday.entry_count} entries</span>
                 </div>
-                <p className="text-sm text-gray-600 leading-relaxed">{summaries.week.summary}</p>
-                {summaries.week.categories.length > 0 && (
+                <p className="text-sm text-gray-600 leading-relaxed">{summaries.yesterday.summary}</p>
+                {summaries.yesterday.categories.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {summaries.week.categories.map((cat) => (
+                    {summaries.yesterday.categories.map((cat) => (
                       <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
                         {cat.replace('_', ' ')}
                       </span>
@@ -365,9 +358,40 @@ export default function Home() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Past Week */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-700">Past 7 Days</h3>
+                {summaries?.week ? (
+                  <span className="text-xs text-gray-500">{summaries.week.entry_count} entries</span>
+                ) : (
+                  <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                )}
+              </div>
+              {summaries?.week ? (
+                <>
+                  <p className="text-sm text-gray-600 leading-relaxed">{summaries.week.summary}</p>
+                  {summaries.week.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {summaries.week.categories.map((cat) => (
+                        <span key={cat} className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(cat)}`}>
+                          {cat.replace('_', ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Recent Entries */}
         <div className="bg-white rounded-lg shadow">

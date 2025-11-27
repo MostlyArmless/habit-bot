@@ -10,7 +10,7 @@ app = Celery(
     "habit_bot",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["src.tasks.llm_tasks", "src.tasks.reminder_tasks"],
+    include=["src.tasks.llm_tasks", "src.tasks.reminder_tasks", "src.tasks.summary_tasks"],
 )
 
 # Celery configuration
@@ -40,6 +40,10 @@ app.conf.update(
         "create-daily-reminders": {
             "task": "src.tasks.reminder_tasks.create_daily_reminders_for_all_users",
             "schedule": 3600.0,  # Every hour (will skip if reminders already exist)
+        },
+        "generate-summaries-every-hour": {
+            "task": "summary_tasks.generate_summaries_for_all_users",
+            "schedule": 3600.0,  # Every hour
         },
     },
 )

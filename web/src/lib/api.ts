@@ -51,12 +51,13 @@ export interface Summary {
   summary: string;
   entry_count: number;
   categories: string[];
+  generated_at: string | null;
 }
 
 export interface Summaries {
-  today: Summary;
-  yesterday: Summary;
-  week: Summary;
+  today: Summary | null;
+  yesterday: Summary | null;
+  week: Summary | null;
 }
 
 class ApiClient {
