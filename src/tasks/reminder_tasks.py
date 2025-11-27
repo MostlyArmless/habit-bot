@@ -129,28 +129,34 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
     """Create scheduled reminders for a user based on their preferences.
 
     This task generates reminders for the upcoming period based on:
-    - User's wake/sleep times
+    - User's wake/sleep times (in user's local timezone)
     - Category preferences
     - Response history (to avoid over-asking)
 
     Args:
         user_id: ID of the user to schedule reminders for
     """
+    import pytz
+
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             return {"success": False, "error": "User not found"}
 
-        # Get user's schedule preferences
+        # Get user's timezone (default to UTC if not set)
+        user_tz = pytz.timezone(user.timezone) if user.timezone else pytz.UTC
+
+        # Get user's schedule preferences (in their local timezone)
         # Reminders only allowed between wake_time and screens_off_time
         wake_time = user.wake_time or datetime.strptime("08:00:00", "%H:%M:%S").time()
         # Use screens_off_time as the cutoff (fall back to sleep_time, then default)
         end_time = user.screens_off_time or user.sleep_time or datetime.strptime("21:00:00", "%H:%M:%S").time()
 
-        # Calculate reminders for today
-        now = datetime.now(timezone.utc)
-        today = now.date()
+        # Get current time in user's timezone
+        now_utc = datetime.now(timezone.utc)
+        now_local = now_utc.astimezone(user_tz)
+        today_local = now_local.date()
 
         # Default categories to check
         categories = [
@@ -166,17 +172,21 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
         reminder_times = _calculate_reminder_times(wake_time, end_time, num_reminders=4)
 
         for i, reminder_time in enumerate(reminder_times):
-            scheduled_dt = datetime.combine(today, reminder_time, tzinfo=timezone.utc)
+            # Create datetime in user's local timezone
+            scheduled_local = user_tz.localize(datetime.combine(today_local, reminder_time))
 
             # Skip if time has already passed
-            if scheduled_dt <= now:
+            if scheduled_local <= now_local:
                 continue
+
+            # Convert to UTC for storage
+            scheduled_utc = scheduled_local.astimezone(pytz.UTC).replace(tzinfo=None)
 
             # Check if reminder already exists for this time
             existing = (
                 db.query(Reminder)
                 .filter(Reminder.user_id == user_id)
-                .filter(Reminder.scheduled_time == scheduled_dt)
+                .filter(Reminder.scheduled_time == scheduled_utc)
                 .first()
             )
             if existing:
@@ -187,7 +197,7 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
 
             reminder = Reminder(
                 user_id=user_id,
-                scheduled_time=scheduled_dt,
+                scheduled_time=scheduled_utc,
                 questions={f"q1": f"How are you doing with your {reminder_categories[0]}?"},
                 categories=reminder_categories,
                 status=ReminderStatus.SCHEDULED.value,
@@ -196,7 +206,7 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
             db.commit()
             scheduled += 1
 
-        logger.info(f"Scheduled {scheduled} reminders for user {user_id}")
+        logger.info(f"Scheduled {scheduled} reminders for user {user_id} in timezone {user.timezone}")
         return {"success": True, "scheduled": scheduled}
 
     finally:
