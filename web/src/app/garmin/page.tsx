@@ -40,8 +40,9 @@ function formatValue(type: string, value: number | null): string {
 
   switch (type) {
     case 'sleep':
-      const hours = Math.floor(value / 3600);
-      const mins = Math.floor((value % 3600) / 60);
+      // Value is already in hours (e.g., 7.22 hours)
+      const hours = Math.floor(value);
+      const mins = Math.round((value - hours) * 60);
       return `${hours}h ${mins}m`;
     case 'hrv':
     case 'resting_hr':
