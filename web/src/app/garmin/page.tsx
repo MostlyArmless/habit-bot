@@ -13,6 +13,7 @@ interface GarminData {
 
 const METRIC_ICONS: Record<string, string> = {
   sleep: '😴',
+  sleep_score: '⭐',
   hrv: '💓',
   resting_hr: '❤️',
   body_battery: '🔋',
@@ -21,6 +22,7 @@ const METRIC_ICONS: Record<string, string> = {
 
 const METRIC_LABELS: Record<string, string> = {
   sleep: 'Sleep',
+  sleep_score: 'Sleep Score',
   hrv: 'HRV',
   resting_hr: 'Resting HR',
   body_battery: 'Body Battery',
@@ -29,6 +31,7 @@ const METRIC_LABELS: Record<string, string> = {
 
 const METRIC_UNITS: Record<string, string> = {
   sleep: 'hrs',
+  sleep_score: '/100',
   hrv: 'ms',
   resting_hr: 'bpm',
   body_battery: '%',
@@ -43,10 +46,10 @@ function formatValue(type: string, value: number | null): string {
       // Value is already in hours (e.g., 7.22 hours)
       const hours = Math.floor(value);
       const mins = Math.round((value - hours) * 60);
-      return `${hours}h ${mins}m`;
+      return `${hours}h${mins}m`;
+    case 'sleep_score':
     case 'hrv':
     case 'resting_hr':
-      return Math.round(value).toString();
     case 'body_battery':
     case 'stress':
       return Math.round(value).toString();
@@ -124,7 +127,19 @@ export default function GarminPage() {
     );
   }
 
-  const metricTypes = ['sleep', 'hrv', 'resting_hr', 'body_battery', 'stress'];
+  const metricTypes = ['sleep', 'sleep_score', 'hrv', 'resting_hr', 'body_battery', 'stress'];
+
+  // Group recent data by date for table view
+  const dataByDate: Record<string, Record<string, GarminData>> = {};
+  recentData.forEach((item) => {
+    if (!dataByDate[item.metric_date]) {
+      dataByDate[item.metric_date] = {};
+    }
+    dataByDate[item.metric_date][item.metric_type] = item;
+  });
+
+  // Get sorted dates (newest first)
+  const dates = Object.keys(dataByDate).sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -161,9 +176,9 @@ export default function GarminPage() {
               <div key={type} className="bg-white rounded-lg shadow p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl">{METRIC_ICONS[type]}</span>
-                  <span className="text-sm text-gray-600">{METRIC_LABELS[type]}</span>
+                  <span className="text-xs text-gray-600">{METRIC_LABELS[type]}</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-800">
+                <div className="text-xl font-bold text-gray-800">
                   {data ? formatValue(type, data.value) : '--'}
                 </div>
                 {data && METRIC_UNITS[type] && (
@@ -171,7 +186,7 @@ export default function GarminPage() {
                 )}
                 {data && (
                   <div className="text-xs text-gray-400 mt-1">
-                    {new Date(data.metric_date).toLocaleDateString()}
+                    {data.metric_date}
                   </div>
                 )}
               </div>
@@ -179,41 +194,59 @@ export default function GarminPage() {
           })}
         </div>
 
-        {/* Recent History */}
-        <div className="bg-white rounded-lg shadow">
+        {/* Recent History Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-4 border-b">
             <h2 className="font-semibold text-gray-700">Recent History</h2>
           </div>
 
-          {recentData.length === 0 ? (
+          {dates.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
               No data yet. Click Sync to fetch from Garmin.
             </div>
           ) : (
-            <div className="divide-y max-h-96 overflow-y-auto">
-              {recentData.map((item) => (
-                <div key={item.id} className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">{METRIC_ICONS[item.metric_type] || '📊'}</span>
-                    <div>
-                      <div className="text-sm font-medium text-gray-700">
-                        {METRIC_LABELS[item.metric_type] || item.metric_type}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(item.metric_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-gray-800">
-                      {formatValue(item.metric_type, item.value)}
-                    </div>
-                    {METRIC_UNITS[item.metric_type] && (
-                      <div className="text-xs text-gray-500">{METRIC_UNITS[item.metric_type]}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                    {metricTypes.map((type) => (
+                      <th key={type} className="px-3 py-2 text-center text-xs font-medium text-gray-500">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{METRIC_ICONS[type]}</span>
+                          <span className="hidden sm:inline">{METRIC_LABELS[type]}</span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {dates.map((date) => {
+                    const dayData = dataByDate[date];
+                    return (
+                      <tr key={date} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                          {date}
+                        </td>
+                        {metricTypes.map((type) => {
+                          const item = dayData[type];
+                          return (
+                            <td key={type} className="px-3 py-2 text-center text-xs">
+                              {item ? (
+                                <span className="font-medium text-gray-800">
+                                  {formatValue(type, item.value)}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">--</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
