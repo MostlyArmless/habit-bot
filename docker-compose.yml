@@ -111,6 +111,8 @@ services:
     environment:
       # API URL as seen from browser (your LAN IP)
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://192.168.0.150:8001}
+      # Set turbopack root to /app (the container's working directory)
+      - NEXT_TURBOPACK_ROOT=/app
     ports:
       - "3000:3000"
     volumes:

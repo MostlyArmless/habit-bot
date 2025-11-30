@@ -4,64 +4,236 @@
 
 This document specifies a complete Ecological Momentary Assessment (EMA) system for personal health tracking. The system prompts the user throughout the day to capture behaviors and outcomes in real-time, integrates with Garmin wearables and Google Calendar, and uses LLMs to extract insights and correlations from the collected data.
 
-**Core Architecture:** Smart server (Python on Linux) + obedient client (Android app)
+**Core Architecture:** Smart server (Python on Linux) + web-based PWA client (Next.js)
 
 **Key Technologies:**
-- Backend: Python 3.12+, FastAPI, PostgreSQL, SQLAlchemy (ORM), Alembic (migrations)
-- Android: Kotlin, Jetpack Compose, Room Database
-- LLM: Ollama with Gemma 2 32B (local)
-- Integrations: Google Calendar API, Garmin Connect API
+- Backend: Python 3.12+, FastAPI, PostgreSQL, SQLAlchemy (ORM), Alembic (migrations), Celery + Redis
+- Frontend: Next.js 16, React, TypeScript, Progressive Web App
+- LLM: Ollama with Gemma 3 (12B for accuracy, 1B for speed)
+- Notifications: ntfy.sh push notifications
+- Deployment: Docker Compose with nginx reverse proxy
+- Integrations: Garmin Connect API (in progress), Google Calendar API (planned)
+
+## Current Implementation Status (Updated 2025-11-28)
+
+### ✅ Phase 1: Core Infrastructure (COMPLETED)
+- [x] PostgreSQL database with all 11 tables
+- [x] SQLAlchemy ORM models for all entities
+- [x] Alembic migration system
+- [x] FastAPI server with REST API
+- [x] Docker Compose infrastructure (db, redis, api, celery-worker, celery-beat, pwa)
+- [x] Pydantic schemas for validation
+- [x] LLM integration service (Ollama with gemma3:12b/gemma3:1b)
+- [x] Celery background tasks infrastructure
+- [x] Test suite (49 passing tests)
+
+### ✅ Phase 2: Client Application (COMPLETED - PWA instead of Android)
+- [x] Next.js PWA with TypeScript
+- [x] Quick log functionality for ad-hoc entries
+- [x] Reminder response interface
+- [x] History view (Recent Entries page)
+- [x] Garmin data sync page
+- [x] Schedule management page
+- [x] Settings page
+- [x] Progressive Web App capabilities
+- [x] ntfy.sh push notifications (replace Android-specific notifications)
+- [x] Docker-ized development and deployment
+
+### 🔄 Phase 3: External Integrations (IN PROGRESS)
+- [x] Garmin data models created
+- [x] Garmin API endpoints implemented
+- [x] Basic Garmin sync functionality
+- [~] Garmin automated daily sync at 8:30 AM
+- [ ] Google Calendar models created
+- [ ] Google Calendar sync functionality
+- [ ] Calendar-aware scheduling
+
+### ⏳ Phase 4: Advanced Features (NOT STARTED)
+- [ ] Iterative prompting with gap detection
+- [ ] Response consolidation
+- [ ] Analysis engine (correlations)
+- [ ] Anomaly detection
+- [ ] Insight generation
+- [ ] Historical gap detection
+- [ ] Promptfoo LLM evaluation setup
+
+### 🚀 Deployment (COMPLETED)
+- [x] Docker Compose for all services
+- [x] Nginx reverse proxy (habitbot.lan)
+- [x] Pi-hole DNS integration
+- [x] LAN-accessible at https://habitbot.lan
 
 ---
 
 ## System Architecture
 
-### High-Level Components
+### High-Level Components (As Implemented)
 
 ```
-┌─────────────────┐         ┌──────────────────┐
-│  Android App    │◄────────┤  Python Server   │
-│  (Phone)        │  LAN    │  (Linux Desktop) │
-└─────────────────┘         └──────────────────┘
-       │                             │
-       │                             │
-       ▼                             ▼
-  Local SQLite           PostgreSQL Database
-  (offline queue)        (primary storage)
-                                    │
-                                    ▼
-                          ┌─────────────────┐
-                          │  Ollama LLM     │
-                          │  (Gemma 2 32B)  │
-                          └─────────────────┘
-                                    │
-                                    ▼
-                          ┌─────────────────┐
-                          │  Analysis       │
-                          │  Engine         │
-                          └─────────────────┘
+┌─────────────────┐         ┌──────────────────────────┐
+│  Web Browser    │◄────────┤  Docker Compose Stack    │
+│  (PWA)          │  HTTPS  │  ┌────────────────────┐  │
+│                 │  via    │  │  nginx (reverse    │  │
+│  Mac/Mobile     │  nginx  │  │  proxy)            │  │
+└─────────────────┘         │  └────────────────────┘  │
+       ▲                    │           │              │
+       │                    │           ▼              │
+       │  ntfy.sh push      │  ┌────────────────────┐  │
+       │  notifications     │  │  Next.js PWA       │  │
+       └────────────────────┼──┤  (port 3000)       │  │
+                            │  └────────────────────┘  │
+                            │           │              │
+                            │           ▼              │
+                            │  ┌────────────────────┐  │
+                            │  │  FastAPI Server    │  │
+                            │  │  (port 8001)       │  │
+                            │  └────────────────────┘  │
+                            │           │              │
+                            │           ▼              │
+                            │  ┌────────────────────┐  │
+                            │  │  PostgreSQL DB     │  │
+                            │  │  (port 5434)       │  │
+                            │  └────────────────────┘  │
+                            │           │              │
+                            │           ▼              │
+                            │  ┌────────────────────┐  │
+                            │  │  Redis             │  │
+                            │  │  (port 6380)       │  │
+                            │  └────────────────────┘  │
+                            │           │              │
+                            │           ▼              │
+                            │  ┌────────────────────┐  │
+                            │  │  Celery Workers    │  │
+                            │  │  (worker + beat)   │  │
+                            │  └────────────────────┘  │
+                            └──────────────────────────┘
+                                       │
+                                       ▼
+                             ┌─────────────────┐
+                             │  Ollama LLM     │
+                             │  (host.docker.  │
+                             │   internal)     │
+                             │  gemma3:12b/1b  │
+                             └─────────────────┘
 ```
 
-### Data Flow
+### Data Flow (As Implemented)
 
 1. **Prompting Flow:**
-   - Server scheduler calculates next prompt time based on rules, calendar, and history
-   - Server sends prompt to Android app via REST API
-   - App displays full-screen prompt, user responds via voice/text
-   - Response sent back to server immediately (or queued if offline)
+   - Celery beat scheduler calculates next reminder time based on rules and configuration
+   - Server sends notification via ntfy.sh to user's subscribed devices
+   - User opens PWA at https://habitbot.lan
+   - User responds to reminder via text input
+   - Response sent to API immediately, processed in background by Celery worker
 
-2. **Processing Flow:**
-   - Server receives raw text response
-   - Validates response with schema using Ollama + Gemma 2 32B
-   - Retries up to 5 times if schema validation fails
-   - Stores both raw text and structured JSON in database
-   - Updates scheduling algorithm with new data
+2. **Processing Flow (As Implemented):**
+   - Server receives raw text response from PWA
+   - Celery worker queues response for LLM processing
+   - LLM service extracts structured data using Ollama + Gemma 3
+   - Stores both raw text and structured JSON in responses table
+   - Response marked as "completed" after successful processing
+   - **Note:** Currently behaviors/outcomes tables are not being populated from responses (known issue)
 
-3. **Analysis Flow:**
+3. **Analysis Flow (Planned - Not Yet Implemented):**
    - Daily job: Summarize data, flag anomalies
    - Weekly job: Run correlation analysis between behaviors and outcomes
    - Monthly job: Generate comprehensive insights report
    - Ad-hoc: Identify historical gaps and generate one-time follow-up questions
+
+## Major Design Changes from Original Plan
+
+### 1. PWA Instead of Native Android App
+**Original Plan:** Native Android app with Kotlin + Jetpack Compose
+**Implemented:** Next.js Progressive Web App
+
+**Rationale:**
+- Faster development iteration
+- Works on all devices (Mac, iPhone, Android) without separate builds
+- Can be accessed from any browser
+- Still supports push notifications via ntfy.sh
+- Eliminates Android-specific complications (Play Store, device testing, etc.)
+
+### 2. Docker Compose Deployment
+**Original Plan:** systemd services for server components
+**Implemented:** Full Docker Compose stack with hot-reload
+
+**Benefits:**
+- Simplified deployment and dependency management
+- Easy to tear down and rebuild
+- Consistent environment across development and production
+- All services orchestrated together
+
+### 3. LLM Model Changes
+**Original Plan:** Ollama with Gemma 2 32B
+**Implemented:** Ollama with Gemma 3 12B (accuracy) and Gemma 3 1B (speed)
+
+**Rationale:**
+- Gemma 3 12B provides better accuracy than Gemma 2 32B with lower resource usage
+- Gemma 3 1B for quick operations (category detection, simple prompts)
+- More flexible model selection based on task requirements
+
+### 4. ntfy.sh for Notifications
+**Original Plan:** Direct Android push notifications
+**Implemented:** ntfy.sh pub/sub notification service
+
+**Benefits:**
+- Works with any device (desktop, mobile)
+- No Firebase/Google dependencies
+- Simple HTTP API
+- Supports multiple devices simultaneously
+- User can subscribe from any ntfy client
+
+### 5. nginx Reverse Proxy with Custom Domain
+**Added:** nginx reverse proxy with SSL and custom LAN domain (habitbot.lan)
+
+**Benefits:**
+- Clean URL instead of IP:port
+- SSL/TLS for secure connections (even on LAN)
+- Professional user experience
+- Integrates with Pi-hole for DNS
+
+## Known Issues and Limitations
+
+### Critical Issues
+1. **Behaviors/Outcomes Not Being Created**
+   - LLM extracts structured data and stores in `response_structured` JSONB field
+   - Data is NOT being decomposed into separate `behaviors` and `outcomes` table rows
+   - Recent Entries page only shows responses, not the extracted behaviors/outcomes
+   - Impact: Cannot perform correlation analysis or insights generation until this is fixed
+
+2. **Missing Response Submissions**
+   - Some reminder responses may not be getting saved to database
+   - Users report responding to reminders that don't appear in Recent Entries
+   - Possible causes: Mobile app issue, API submission failure, or user confusion between "acknowledge" and "respond"
+
+### Minor Issues
+1. **Garmin Sync Not Fully Automated**
+   - Scheduled sync at 8:30 AM exists but reliability not verified
+   - Manual sync via UI works correctly
+   - Sleep score data syncs successfully
+
+2. **No Calendar Integration Yet**
+   - Reminder scheduling doesn't check calendar availability
+   - May send reminders during meetings
+
+3. **Limited Error Handling in PWA**
+   - Network errors may not be clearly communicated to user
+   - Offline queue not implemented
+
+### Technical Debt
+1. **No Iterative Prompting**
+   - System doesn't ask follow-up questions to fill gaps
+   - Single-shot Q&A only
+
+2. **No Analysis Engine**
+   - Correlation analysis not implemented
+   - Anomaly detection not implemented
+   - Insight generation not implemented
+
+3. **Limited Test Coverage**
+   - 49 tests for backend
+   - No frontend tests yet
+   - No end-to-end tests
 
 ---
 
@@ -1870,223 +2042,309 @@ Suggestion: "Run a 2-week experiment: avoid caffeine after 2 PM and track sleep 
 
 ---
 
-## Implementation Plan
+## Implementation Plan (Updated)
 
-### Phase 1: Core Infrastructure (Week 1-2)
+### ✅ Phase 1: Core Infrastructure (COMPLETED)
 
-**Day 1-2: Database & Server Setup**
-- [ ] Set up PostgreSQL database
-- [ ] Create `database.py` with SQLAlchemy engine and session
-- [ ] Create `models/base.py` with declarative base
-- [ ] Create all SQLAlchemy ORM models in `models/`
-- [ ] Initialize Alembic: `alembic init alembic`
-- [ ] Configure `alembic/env.py` to import models and set database URL
-- [ ] Generate initial migration: `alembic revision --autogenerate -m "Initial schema"`
-- [ ] Run migration: `alembic upgrade head`
-- [ ] Verify tables created in PostgreSQL
-- [ ] Set up FastAPI server with basic endpoints
-- [ ] Test database connection with sample queries
-- [ ] Set up Redis and Celery for background jobs
-- [ ] Create configuration file system (`config.yaml` and `config.py`)
+**Database & Server Setup**
+- [x] Set up PostgreSQL database (via Docker Compose)
+- [x] Create `database.py` with SQLAlchemy engine and session
+- [x] Create all SQLAlchemy ORM models in `models/`
+- [x] Initialize Alembic and configure migrations
+- [x] Generate and run initial migration
+- [x] Set up FastAPI server with REST API endpoints
+- [x] Set up Redis and Celery for background jobs
+- [x] Create configuration system with environment variables
 
-**Day 3-4: LLM Integration**
-- [ ] Install and configure Ollama with Gemma 2 32B
-- [ ] Create LLM client wrapper class
-- [ ] Implement schema validation system
-- [ ] Write extraction prompts for each category
-- [ ] Test extraction with sample responses
+**LLM Integration**
+- [x] Install and configure Ollama with Gemma 3 models (12B and 1B)
+- [x] Create LLM client wrapper class (`services/llm.py`)
+- [x] Implement structured data extraction
+- [x] Write extraction prompts for categories
+- [x] Test extraction with sample responses
 
-**Day 5-7: Basic Prompting System**
-- [ ] Implement prompt scheduling algorithm (simple version)
-- [ ] Create question bank with templates
-- [ ] Implement prompt storage and retrieval
-- [ ] Create API endpoints for prompts and responses
-- [ ] Test end-to-end: schedule → store → retrieve
+**Basic Prompting System**
+- [x] Implement reminder scheduling algorithm
+- [x] Create API endpoints for reminders and responses
+- [x] Implement ntfy.sh notification integration
+- [x] Test end-to-end: schedule → notify → respond → process
 
-### Phase 2: Android App (Week 2-3)
+### ✅ Phase 2: Client Application (COMPLETED - PWA)
 
-**Day 8-10: App Foundation**
-- [ ] Create Android project with Kotlin + Compose
-- [ ] Set up Room database for local storage
-- [ ] Implement Retrofit client for API communication
-- [ ] Create basic UI screens (main, prompt, settings)
-- [ ] Implement offline queue system
+**PWA Foundation**
+- [x] Create Next.js 16 project with TypeScript
+- [x] Set up Docker container for PWA
+- [x] Create basic UI pages (home, history, garmin, schedule, settings)
+- [x] Implement API client library (`lib/api.ts`)
+- [x] Integrate with FastAPI backend
 
-**Day 11-13: Notifications & Voice**
-- [ ] Implement high-priority notifications
-- [ ] Create full-screen prompt activity
-- [ ] Integrate Android SpeechRecognizer for voice input
-- [ ] Implement reminder escalation system
-- [ ] Test notification bypass for DND mode
+**Features**
+- [x] Quick log functionality for ad-hoc entries
+- [x] Reminder response interface
+- [x] Recent Entries history view
+- [x] Garmin data sync page
+- [x] Settings configuration
+- [x] Responsive design for mobile and desktop
 
-**Day 14: Integration Testing**
-- [ ] Test server-to-app communication
-- [ ] Test offline/online transitions
-- [ ] Test voice input → server → extraction pipeline
-- [ ] Fix bugs and polish UI
+**Deployment**
+- [x] Docker Compose orchestration
+- [x] nginx reverse proxy setup
+- [x] SSL/TLS with self-signed certificates
+- [x] Custom domain (habitbot.lan) with Pi-hole DNS
 
-### Phase 3: External Integrations (Week 3-4)
+### 🔄 Phase 3: External Integrations (IN PROGRESS)
 
-**Day 15-17: Google Calendar**
+**Garmin Integration**
+- [x] Set up Garmin Connect library (garminconnect)
+- [x] Create Garmin data models
+- [x] Implement Garmin API endpoints
+- [x] Create manual sync functionality
+- [x] Implement automated daily sync (8:30 AM)
+- [~] Backfill historical data (partially working)
+- [~] Verify reliability of automated sync
+- [ ] Add more Garmin metrics (HRV, body battery, stress)
+
+**Google Calendar**
+- [x] Calendar event model created
 - [ ] Set up Google Calendar API credentials
 - [ ] Implement OAuth flow for calendar access
 - [ ] Create calendar sync background job
-- [ ] Implement availability checking logic
-- [ ] Test: prompt avoids meetings correctly
+- [ ] Implement availability checking in scheduler
+- [ ] Test: reminders avoid meetings
 
-**Day 18-20: Garmin Integration**
-- [ ] Set up Garmin Connect API access
-- [ ] Implement Garmin data sync job
-- [ ] Create backfill function for historical data
-- [ ] Store Garmin data in database
-- [ ] Test: Garmin data appears in system
-
-**Day 21: Smart Scheduling**
-- [ ] Enhance scheduling algorithm with calendar awareness
-- [ ] Add Garmin data as input to scheduling
+**Smart Scheduling**
+- [x] Basic time-based scheduling algorithm
+- [ ] Enhance with calendar awareness
+- [ ] Add Garmin data as input (sleep quality, stress)
 - [ ] Implement category-specific frequency tracking
 - [ ] Test: system respects all constraints
 
-### Phase 4: Advanced Features (Week 4-5)
+### ⏳ Phase 4: Advanced Features (NOT STARTED)
 
-**Day 22-24: Iterative Prompting**
+**Fix Critical Issues First**
+- [ ] Implement behaviors/outcomes table population from responses
+- [ ] Investigate and fix missing response submissions
+- [ ] Add proper error handling throughout PWA
+
+**Iterative Prompting**
 - [ ] Implement gap detection with LLM
 - [ ] Create follow-up question generation
 - [ ] Implement response consolidation
 - [ ] Test: system asks follow-ups appropriately
-- [ ] Ensure batch responses are merged correctly
 
-**Day 25-27: Analysis Engine**
+**Analysis Engine**
 - [ ] Implement daily summary job
 - [ ] Implement anomaly detection
-- [ ] Implement correlation analysis (basic version)
+- [ ] Implement correlation analysis (time-series alignment)
 - [ ] Create insight generation with LLM
-- [ ] Store insights in database
+- [ ] Store and display insights in UI
 
-**Day 28-30: Historical Gap Detection**
+**Historical Gap Detection**
 - [ ] Implement gap detection algorithm
 - [ ] Create priority scoring system
 - [ ] Generate one-time follow-up questions
-- [ ] Test: system fills in missing data over time
+- [ ] Add UI to show and respond to gap-filling prompts
 
-### Phase 5: Polish & Testing (Week 5-6)
+### 🎯 Phase 5: Testing & Documentation (PARTIALLY COMPLETE)
 
-**Day 31-33: End-to-End Testing**
-- [ ] Run system for several days with real data
-- [ ] Test all background jobs
-- [ ] Test error handling (LLM failures, network issues, etc.)
-- [ ] Optimize performance (database queries, LLM speed)
+**Testing**
+- [x] Backend unit tests (49 tests)
+- [ ] Frontend component tests
+- [ ] End-to-end tests
+- [ ] Integration tests for Garmin/Calendar
+- [ ] Performance testing (LLM latency, database queries)
 
-**Day 34-35: Documentation**
-- [ ] Write setup instructions
-- [ ] Document API endpoints
-- [ ] Create troubleshooting guide
-- [ ] Write user guide for Android app
+**Documentation**
+- [x] README with setup instructions
+- [x] Docker Compose documentation
+- [ ] API endpoint documentation (OpenAPI/Swagger)
+- [ ] Architecture decision records
+- [ ] Troubleshooting guide
+- [ ] User guide for PWA
 
-**Day 36: Deployment**
-- [ ] Set up systemd services for server
-- [ ] Configure automatic startup
-- [ ] Install Android app on phone
-- [ ] Final configuration and testing
+## Next Steps (Priority Order)
+
+### Immediate Priorities (Critical for MVP)
+
+1. **Fix Behaviors/Outcomes Population** (CRITICAL)
+   - Implement service to decompose `response_structured` JSONB into behaviors/outcomes tables
+   - Add celery task to process responses after LLM extraction
+   - Update Recent Entries page to show behaviors/outcomes instead of raw responses
+   - **Impact:** Enables all downstream features (correlations, insights, visualization)
+
+2. **Investigate Missing Response Submissions** (HIGH)
+   - Add comprehensive logging to response submission flow
+   - Check if issue is in PWA, API, or database layer
+   - Verify ntfy notification → PWA interaction flow
+   - Add retry mechanism for failed submissions
+
+3. **Verify Garmin Auto-Sync Reliability** (MEDIUM)
+   - Monitor 8:30 AM sync for several days
+   - Add logging and error handling
+   - Create alerts if sync fails
+   - Backfill any missing historical data
+
+### Short-Term Features (Weeks 1-2)
+
+4. **Complete Google Calendar Integration**
+   - Set up OAuth2 credentials
+   - Implement calendar sync
+   - Update scheduler to check calendar before sending reminders
+
+5. **Improve PWA User Experience**
+   - Add loading states and error messages
+   - Implement offline queue for responses
+   - Add success confirmations
+   - Improve mobile responsiveness
+
+6. **Enhanced Scheduling**
+   - Add category-specific frequency tracking
+   - Use Garmin sleep data to avoid reminders after poor sleep
+   - Smart spacing of reminders throughout the day
+
+### Medium-Term Features (Weeks 3-6)
+
+7. **Analysis Engine v1**
+   - Basic correlation analysis (caffeine → sleep, exercise → mood)
+   - Simple anomaly detection (unusual sleep, stress spikes)
+   - LLM-generated insights with confidence scores
+
+8. **Historical Gap Detection**
+   - Identify missing data periods
+   - Generate follow-up questions
+   - Prioritize critical categories (sleep, mental state)
+
+9. **Iterative Prompting**
+   - Gap detection after initial response
+   - Follow-up questions for incomplete answers
+   - Response consolidation
+
+### Long-Term Enhancements (Months 2-3+)
+
+10. **Experiment Tracking System**
+    - A/B testing framework for habits
+    - Automatic result analysis
+    - Recommendation generation
+
+11. **Advanced Visualization**
+    - Time-series charts for all metrics
+    - Correlation heatmaps
+    - Trend analysis graphs
+    - Export to PDF reports
+
+12. **Natural Language Commands**
+    - LLM-powered configuration changes
+    - "Stop asking me about X so often"
+    - Dynamic question creation
 
 ---
 
-## Module Breakdown
+## Module Breakdown (As Implemented)
 
-### Server Modules
-
-```
-ema-server/
-├── main.py                    # FastAPI app entry point
-├── config.py                  # Configuration management
-├── database.py                # SQLAlchemy engine and session setup
-├── models/                    # SQLAlchemy ORM models
-│   ├── __init__.py           # Import all models for Alembic
-│   ├── base.py               # Declarative base
-│   ├── user.py
-│   ├── prompt.py
-│   ├── response.py
-│   ├── behavior.py
-│   ├── outcome.py
-│   ├── garmin.py
-│   ├── calendar.py
-│   ├── correlation.py
-│   └── insight.py
-├── alembic/                   # Alembic migrations
-│   ├── versions/             # Migration scripts
-│   └── env.py                # Alembic environment config
-├── alembic.ini               # Alembic configuration
-├── api/                       # API endpoints
-│   ├── prompts.py
-│   ├── responses.py
-│   ├── calendar.py
-│   ├── garmin.py
-│   ├── insights.py
-│   └── config.py
-├── services/                  # Business logic
-│   ├── scheduler.py           # Prompt scheduling logic
-│   ├── llm_service.py         # LLM extraction & analysis
-│   ├── calendar_service.py    # Google Calendar integration
-│   ├── garmin_service.py      # Garmin data sync
-│   ├── analysis_service.py    # Correlation & insight generation
-│   └── gap_detection.py       # Historical gap detection
-├── tasks/                     # Celery background tasks
-│   ├── scheduler_tasks.py
-│   ├── processing_tasks.py
-│   ├── sync_tasks.py
-│   └── analysis_tasks.py
-├── schemas/                   # Pydantic schemas
-│   ├── prompt_schemas.py
-│   ├── response_schemas.py
-│   └── category_schemas.py
-├── utils/                     # Utilities
-│   ├── validation.py
-│   ├── time_utils.py
-│   └── prompts.py             # LLM prompt templates
-├── requirements.txt
-└── config.yaml               # User configuration
-```
-
-### Android App Modules
+### Backend (Python/FastAPI)
 
 ```
-ema-android/
-├── app/
-│   ├── src/main/java/com/ema/tracker/
-│   │   ├── MainActivity.kt
-│   │   ├── data/
-│   │   │   ├── local/
-│   │   │   │   ├── AppDatabase.kt
-│   │   │   │   ├── PromptDao.kt
-│   │   │   │   └── ResponseDao.kt
-│   │   │   ├── remote/
-│   │   │   │   ├── ApiService.kt
-│   │   │   │   └── ApiClient.kt
-│   │   │   ├── models/
-│   │   │   │   ├── Prompt.kt
-│   │   │   │   └── Response.kt
-│   │   │   └── repository/
-│   │   │       └── PromptRepository.kt
-│   │   ├── ui/
-│   │   │   ├── screens/
-│   │   │   │   ├── PromptScreen.kt
-│   │   │   │   ├── HistoryScreen.kt
-│   │   │   │   └── SettingsScreen.kt
-│   │   │   └── components/
-│   │   │       ├── VoiceInputButton.kt
-│   │   │       └── PromptCard.kt
-│   │   ├── viewmodels/
-│   │   │   ├── PromptViewModel.kt
-│   │   │   └── SettingsViewModel.kt
-│   │   ├── services/
-│   │   │   ├── NotificationService.kt
-│   │   │   └── SyncService.kt
-│   │   └── utils/
-│   │       ├── VoiceRecognizer.kt
-│   │       └── NetworkUtils.kt
-│   └── build.gradle
-└── settings.gradle
+habit-bot/
+├── src/
+│   ├── main.py                    # FastAPI app entry point
+│   ├── config.py                  # Configuration management
+│   ├── database.py                # SQLAlchemy engine and session setup
+│   ├── celery_app.py             # Celery application configuration
+│   ├── models/                    # SQLAlchemy ORM models
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   ├── reminder.py           # (renamed from prompt.py)
+│   │   ├── response.py
+│   │   ├── behavior.py
+│   │   ├── outcome.py
+│   │   ├── garmin_data.py
+│   │   ├── calendar_event.py
+│   │   ├── correlation.py
+│   │   ├── insight.py
+│   │   ├── historical_gap.py
+│   │   ├── category.py
+│   │   ├── summary.py
+│   │   └── mixins.py             # Soft delete functionality
+│   ├── api/                       # API endpoint routers
+│   │   ├── __init__.py
+│   │   ├── reminders.py
+│   │   ├── responses.py
+│   │   ├── quicklog.py           # Ad-hoc entry creation
+│   │   ├── garmin.py
+│   │   ├── categories.py
+│   │   ├── users.py
+│   │   ├── health.py             # Health check endpoint
+│   │   ├── llm.py                # LLM test endpoints
+│   │   ├── notifications.py      # ntfy integration
+│   │   └── summaries.py
+│   ├── services/                  # Business logic
+│   │   ├── llm.py                # LLM extraction & generation
+│   │   ├── garmin.py             # Garmin Connect integration
+│   │   └── notifications.py      # ntfy.sh service
+│   ├── tasks/                     # Celery background tasks
+│   │   ├── reminder_tasks.py     # Scheduling and sending
+│   │   ├── llm_tasks.py          # Response processing
+│   │   └── garmin_tasks.py       # Data sync
+│   └── schemas/                   # Pydantic schemas
+│       ├── reminder.py
+│       ├── response.py
+│       ├── garmin.py
+│       └── user.py
+├── alembic/                       # Database migrations
+│   ├── versions/
+│   └── env.py
+├── tests/                         # Pytest test suite
+├── docker-compose.yml            # Container orchestration
+├── Dockerfile                    # API container build
+├── pyproject.toml               # uv project configuration
+└── .env                         # Environment variables
 ```
+
+### Frontend (Next.js PWA)
+
+```
+web/
+├── src/
+│   ├── app/                      # Next.js 16 app router
+│   │   ├── page.tsx             # Home page (Recent Entries)
+│   │   ├── layout.tsx           # Root layout
+│   │   ├── globals.css
+│   │   ├── reminder/            # Reminder response page
+│   │   │   └── [id]/page.tsx
+│   │   ├── history/             # Response history
+│   │   │   └── page.tsx
+│   │   ├── garmin/              # Garmin data display
+│   │   │   └── page.tsx
+│   │   ├── schedule/            # Reminder schedule view
+│   │   │   └── page.tsx
+│   │   └── settings/            # User settings
+│   │       └── page.tsx
+│   └── lib/
+│       └── api.ts               # API client library
+├── public/                       # Static assets
+├── Dockerfile                   # PWA container build
+├── package.json
+└── next.config.ts
+```
+
+### Infrastructure
+
+```
+├── docker-compose.yml           # Orchestrates all services
+├── nginx/
+│   └── sites-available/
+│       └── habitbot.lan         # Reverse proxy config
+└── .env                         # Environment configuration
+```
+
+**Containers:**
+- `db` - PostgreSQL database (port 5434)
+- `redis` - Redis for Celery (port 6380)
+- `api` - FastAPI backend (port 8001)
+- `celery-worker` - Background task processor
+- `celery-beat` - Task scheduler
+- `pwa` - Next.js PWA (port 3000)
+- `db-test` - Test database (port 5435)
 
 ---
 

@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Habit Bot",
   description: "Personal Health Tracking with EMA",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -40,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body

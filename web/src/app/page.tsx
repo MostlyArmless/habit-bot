@@ -20,39 +20,6 @@ function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
 }
 
-function formatTimestamp(timestamp: string): string {
-  // API returns UTC timestamps without 'Z' suffix, so append it
-  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-  const date = new Date(utcTimestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
-
-function formatUpcomingTime(timestamp: string): string {
-  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
-  const date = new Date(utcTimestamp);
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `in ${diffMins}m`;
-  if (diffHours < 24) return `in ${diffHours}h ${diffMins % 60}m`;
-
-  // Show day of week and time for reminders more than 24h away
-  return date.toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-}
-
 export default function Home() {
   const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [responses, setResponses] = useState<ApiResponse[]>([]);
@@ -175,6 +142,32 @@ export default function Home() {
     }
   };
 
+  const adjustTimestamp = (minutes: number) => {
+    let baseTime: Date;
+
+    if (backdateValue) {
+      // Parse the existing backdateValue as local time
+      // datetime-local format is "YYYY-MM-DDTHH:mm", which gets parsed as local
+      baseTime = new Date(backdateValue);
+    } else {
+      baseTime = new Date();
+    }
+
+    // Subtract the specified minutes
+    baseTime.setMinutes(baseTime.getMinutes() - minutes);
+
+    // Format for datetime-local input in LOCAL time (not UTC)
+    const year = baseTime.getFullYear();
+    const month = String(baseTime.getMonth() + 1).padStart(2, '0');
+    const day = String(baseTime.getDate()).padStart(2, '0');
+    const hours = String(baseTime.getHours()).padStart(2, '0');
+    const mins = String(baseTime.getMinutes()).padStart(2, '0');
+    const formatted = `${year}-${month}-${day}T${hours}:${mins}`;
+
+    setBackdateValue(formatted);
+    setShowBackdate(true);
+  };
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -216,7 +209,7 @@ export default function Home() {
             disabled={isSubmitting}
           />
           {/* Backdate toggle and input */}
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <button
               type="button"
               onClick={() => setShowBackdate(!showBackdate)}
@@ -224,6 +217,35 @@ export default function Home() {
             >
               {showBackdate ? '− Hide time' : '+ Set time'}
             </button>
+
+            {/* Quick timestamp adjustment buttons */}
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => adjustTimestamp(1)}
+                disabled={isSubmitting}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded disabled:opacity-50"
+              >
+                −1m
+              </button>
+              <button
+                type="button"
+                onClick={() => adjustTimestamp(5)}
+                disabled={isSubmitting}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded disabled:opacity-50"
+              >
+                −5m
+              </button>
+              <button
+                type="button"
+                onClick={() => adjustTimestamp(60)}
+                disabled={isSubmitting}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded disabled:opacity-50"
+              >
+                −1h
+              </button>
+            </div>
+
             {showBackdate && (
               <input
                 type="datetime-local"
@@ -246,7 +268,18 @@ export default function Home() {
 
           <div className="flex justify-between items-center mt-2">
             <span className="text-xs text-gray-400">
-              {backdateValue ? `Logging for: ${new Date(backdateValue).toLocaleString()}` : 'Auto-categorized by AI'}
+              {backdateValue ? (() => {
+                const date = new Date(backdateValue);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                let hours = date.getHours();
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12 || 12;
+                return `Logging for: ${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${ampm}`;
+              })() : 'Auto-categorized by AI'}
             </span>
             <button
               onClick={handleQuickLog}

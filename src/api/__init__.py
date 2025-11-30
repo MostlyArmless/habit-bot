@@ -8,6 +8,7 @@ from src.api.notifications import router as notifications_router
 from src.api.quicklog import router as quicklog_router
 from src.api.reminders import router as reminders_router
 from src.api.responses import router as responses_router
+from src.api.stories import router as stories_router
 from src.api.summaries import router as summaries_router
 from src.api.users import router as users_router
 
@@ -20,6 +21,7 @@ __all__ = [
     "quicklog_router",
     "reminders_router",
     "responses_router",
+    "stories_router",
     "summaries_router",
     "users_router",
 ]

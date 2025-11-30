@@ -30,5 +30,8 @@
   "homepage": "https://github.com/MostlyArmless/habit-bot#readme",
   "devDependencies": {
     "promptfoo": "^0.119.10"
+  },
+  "overrides": {
+    "posthog-node": "5.14.0"
   }
 }

@@ -11,7 +11,7 @@ app = Celery(
     "habit_bot",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["src.tasks.llm_tasks", "src.tasks.reminder_tasks", "src.tasks.summary_tasks", "src.tasks.garmin_tasks"],
+    include=["src.tasks.llm_tasks", "src.tasks.reminder_tasks", "src.tasks.summary_tasks", "src.tasks.garmin_tasks", "src.tasks.story_tasks"],
 )
 
 # Celery configuration
@@ -38,6 +38,10 @@ app.conf.update(
             "task": "src.tasks.llm_tasks.process_pending_responses",
             "schedule": 30.0,  # Every 30 seconds
         },
+        "process-pending-stories-every-30s": {
+            "task": "src.tasks.story_tasks.process_pending_stories",
+            "schedule": 30.0,  # Every 30 seconds
+        },
         "create-daily-reminders": {
             "task": "src.tasks.reminder_tasks.create_daily_reminders_for_all_users",
             "schedule": 3600.0,  # Every hour (will skip if reminders already exist)
@@ -49,6 +53,10 @@ app.conf.update(
         "sync-garmin-daily-at-8:30am": {
             "task": "garmin_tasks.sync_garmin_for_all_users",
             "schedule": crontab(hour=8, minute=30),  # 8:30am Pacific (respects DST)
+        },
+        "send-story-reminders-at-8pm": {
+            "task": "src.tasks.story_tasks.send_story_reminders",
+            "schedule": crontab(hour=20, minute=0),  # 8pm Pacific (respects DST)
         },
     },
 )

@@ -37,6 +37,7 @@ class User(Base):
     historical_gaps: Mapped[list["HistoricalGap"]] = relationship(  # noqa: F821
         back_populates="user"
     )
+    stories: Mapped[list["Story"]] = relationship(back_populates="user")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, name='{self.name}')>"

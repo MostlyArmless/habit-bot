@@ -18,6 +18,7 @@ from src.api import (
     quicklog_router,
     reminders_router,
     responses_router,
+    stories_router,
     summaries_router,
     users_router,
 )
@@ -76,6 +77,7 @@ app.include_router(users_router)
 app.include_router(categories_router)
 app.include_router(reminders_router)
 app.include_router(responses_router)
+app.include_router(stories_router)
 app.include_router(llm_router)
 app.include_router(notifications_router)
 app.include_router(quicklog_router)
