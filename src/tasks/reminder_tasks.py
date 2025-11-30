@@ -132,11 +132,13 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
     - User's wake/sleep times (in user's local timezone)
     - Category preferences
     - Response history (to avoid over-asking)
+    - Category frequency limits (e.g., sleep only once per day)
 
     Args:
         user_id: ID of the user to schedule reminders for
     """
     import pytz
+    from src.services.reminder_intelligence import ReminderIntelligenceService
 
     db = SessionLocal()
     try:
@@ -158,18 +160,26 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
         now_local = now_utc.astimezone(user_tz)
         today_local = now_local.date()
 
-        # Default categories to check
-        categories = [
-            "mental_state",
-            "sleep",
-            "nutrition",
-            "physical_activity",
-            "stress_anxiety",
-        ]
+        # Use intelligence service to generate smart reminders
+        intelligence_service = ReminderIntelligenceService()
+        reminder_data = run_async(intelligence_service.generate_intelligent_reminder(user_id, db))
 
-        # Schedule reminders between wake and screens-off times
+        # Calculate time window
+        wake_minutes = wake_time.hour * 60 + wake_time.minute
+        end_minutes = end_time.hour * 60 + end_time.minute
+        if end_minutes <= wake_minutes:
+            end_minutes += 24 * 60  # Handle overnight span
+
+        total_minutes = end_minutes - wake_minutes
+
+        # Generate 3-4 reminder times spread throughout the day
+        num_reminders = min(4, max(2, len(reminder_data["questions"]) // 3))
+        reminder_times = _calculate_reminder_times(wake_time, end_time, num_reminders=num_reminders)
+
+        # Distribute questions across reminders
         scheduled = 0
-        reminder_times = _calculate_reminder_times(wake_time, end_time, num_reminders=4)
+        questions_per_reminder = max(1, len(reminder_data["questions"]) // num_reminders)
+        question_keys = list(reminder_data["questions"].keys())
 
         for i, reminder_time in enumerate(reminder_times):
             # Create datetime in user's local timezone
@@ -192,22 +202,38 @@ def create_scheduled_reminders_for_user(user_id: int) -> dict:
             if existing:
                 continue
 
-            # Select categories for this reminder (rotate through them)
-            reminder_categories = [categories[i % len(categories)]]
+            # Distribute questions across reminders
+            start_idx = i * questions_per_reminder
+            end_idx = start_idx + questions_per_reminder
+            if i == num_reminders - 1:
+                # Last reminder gets any remaining questions
+                end_idx = len(question_keys)
+
+            reminder_questions = {
+                key: reminder_data["questions"][key]
+                for key in question_keys[start_idx:end_idx]
+                if start_idx < len(question_keys)
+            }
+
+            if not reminder_questions:
+                continue
 
             reminder = Reminder(
                 user_id=user_id,
                 scheduled_time=scheduled_utc,
-                questions={f"q1": f"How are you doing with your {reminder_categories[0]}?"},
-                categories=reminder_categories,
+                questions=reminder_questions,
+                categories=reminder_data["categories"],
                 status=ReminderStatus.SCHEDULED.value,
             )
             db.add(reminder)
             db.commit()
             scheduled += 1
 
-        logger.info(f"Scheduled {scheduled} reminders for user {user_id} in timezone {user.timezone}")
-        return {"success": True, "scheduled": scheduled}
+        logger.info(
+            f"Scheduled {scheduled} intelligent reminders for user {user_id} in timezone {user.timezone}. "
+            f"Reasoning: {reminder_data['reasoning']}"
+        )
+        return {"success": True, "scheduled": scheduled, "reasoning": reminder_data["reasoning"]}
 
     finally:
         db.close()

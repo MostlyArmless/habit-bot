@@ -36,6 +36,21 @@ class ReminderIntelligenceService:
             "environment",
         ]
 
+        # Category-specific frequency limits (in hours)
+        # These define the MINIMUM time between asking about each category
+        self.category_frequency_limits = {
+            "sleep": 24,  # Only ask about sleep once per day max
+            "mental_state": 4,  # Can check in on mental state more frequently
+            "stress_anxiety": 6,
+            "nutrition": 8,
+            "physical_activity": 8,
+            "substances": 12,
+            "physical_symptoms": 12,
+            "social_interaction": 12,
+            "work_productivity": 12,
+            "environment": 24,
+        }
+
     def analyze_category_coverage(
         self, user_id: int, db: Session, lookback_hours: int = 24
     ) -> dict[str, Any]:
@@ -89,6 +104,44 @@ class ReminderIntelligenceService:
             "last_response_by_category": last_response_by_category,
             "total_responses": len(recent_responses),
         }
+
+    def get_last_asked_times(self, user_id: int, db: Session) -> dict[str, datetime]:
+        """Get the last time each category was asked in a reminder.
+
+        This checks reminders (not responses) to see when we last asked about each category,
+        which is important for enforcing frequency limits.
+
+        Args:
+            user_id: User ID
+            db: Database session
+
+        Returns:
+            Dict mapping category -> last asked timestamp
+        """
+        from src.models.reminder import Reminder as ReminderModel
+
+        # Get all recent reminders for this user
+        recent_reminders = (
+            db.query(ReminderModel)
+            .filter(ReminderModel.user_id == user_id)
+            .order_by(ReminderModel.scheduled_time.desc())
+            .limit(100)  # Look at last 100 reminders
+            .all()
+        )
+
+        last_asked: dict[str, datetime] = {}
+
+        for reminder in recent_reminders:
+            if not reminder.categories:
+                continue
+
+            # reminder.categories is a list of category names
+            for category in reminder.categories:
+                # Only record if we haven't seen this category yet (we want the most recent)
+                if category not in last_asked:
+                    last_asked[category] = reminder.scheduled_time
+
+        return last_asked
 
     def get_recent_context(
         self, user_id: int, db: Session, category: str, limit: int = 3
@@ -178,11 +231,44 @@ class ReminderIntelligenceService:
             - categories: List of categories covered
             - reasoning: Why these questions were chosen
         """
-        # Analyze what's been covered in last 24 hours
+        now = datetime.now(timezone.utc)
+
+        # Get when each category was last asked
+        last_asked_times = self.get_last_asked_times(user_id, db)
+
+        # Filter out categories that were asked too recently
+        eligible_categories = []
+        for category in self.all_categories:
+            min_hours = self.category_frequency_limits.get(category, 12)  # Default 12 hours
+            last_asked = last_asked_times.get(category)
+
+            if last_asked is None:
+                # Never asked before, eligible
+                eligible_categories.append(category)
+            else:
+                # Make last_asked timezone aware if it isn't
+                if last_asked.tzinfo is None:
+                    last_asked = last_asked.replace(tzinfo=timezone.utc)
+
+                hours_since_asked = (now - last_asked).total_seconds() / 3600
+                if hours_since_asked >= min_hours:
+                    eligible_categories.append(category)
+                else:
+                    logger.debug(
+                        f"Skipping {category}: asked {hours_since_asked:.1f}h ago "
+                        f"(min interval: {min_hours}h)"
+                    )
+
+        # If no categories are eligible, use mental_state as fallback (it has shortest interval)
+        if not eligible_categories:
+            logger.warning("No eligible categories! Using mental_state as fallback")
+            eligible_categories = ["mental_state"]
+
+        # Analyze what's been covered in last 24 hours (for responses, not reminders)
         analysis = self.analyze_category_coverage(user_id, db, lookback_hours=24)
 
-        gap_categories = analysis["gap_categories"]
-        covered_categories = analysis["covered_categories"]
+        gap_categories = [c for c in analysis["gap_categories"] if c in eligible_categories]
+        covered_categories = [c for c in analysis["covered_categories"] if c in eligible_categories]
 
         # Prioritize gaps, but also check in on covered categories if they're important
         target_categories = []
@@ -199,9 +285,9 @@ class ReminderIntelligenceService:
             )
             target_categories.extend(covered_sorted[: 3 - len(target_categories)])
 
-        # If still no categories, use defaults
+        # If still no categories, use eligible ones
         if not target_categories:
-            target_categories = ["mental_state", "sleep", "nutrition"]
+            target_categories = eligible_categories[:3]
 
         # Generate questions for these categories
         questions_by_category = await self.generate_questions_for_categories(
@@ -219,7 +305,12 @@ class ReminderIntelligenceService:
                 all_questions[f"q{question_idx}"] = question
                 question_idx += 1
 
-        reasoning = f"Covering {len(gap_categories)} gap categories and {len([c for c in target_categories if c in covered_categories])} recent categories. Total responses in last 24h: {analysis['total_responses']}"
+        reasoning = (
+            f"Covering {len(gap_categories)} gap categories and "
+            f"{len([c for c in target_categories if c in covered_categories])} recent categories. "
+            f"Total responses in last 24h: {analysis['total_responses']}. "
+            f"Eligible categories (respecting frequency limits): {len(eligible_categories)}/{len(self.all_categories)}"
+        )
 
         return {
             "questions": all_questions,
