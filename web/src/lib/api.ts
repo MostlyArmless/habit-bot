@@ -60,6 +60,24 @@ export interface Summaries {
   week: Summary | null;
 }
 
+export interface Story {
+  id: number;
+  user_id: number;
+  story_text: string;
+  feedback: Record<string, unknown> | null;
+  timestamp: string;
+  processing_status: string;
+  processing_attempts: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface StoryCreate {
+  user_id: number;
+  story_text: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -160,6 +178,44 @@ class ApiClient {
 
   async getSummaries(userId: number): Promise<Summaries> {
     return this.fetch<Summaries>(`/api/v1/summaries/?user_id=${userId}`);
+  }
+
+  async createStory(data: StoryCreate): Promise<Story> {
+    return this.fetch<Story>('/api/v1/stories/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getStories(params?: {
+    user_id?: number;
+    processing_status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Story[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.user_id) searchParams.set('user_id', params.user_id.toString());
+    if (params?.processing_status) searchParams.set('processing_status', params.processing_status);
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+    const query = searchParams.toString();
+    return this.fetch<Story[]>(`/api/v1/stories/${query ? `?${query}` : ''}`);
+  }
+
+  async getStory(storyId: number): Promise<Story> {
+    return this.fetch<Story>(`/api/v1/stories/${storyId}`);
+  }
+
+  async deleteStory(storyId: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/v1/stories/${storyId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API error: ${response.status} - ${error}`);
+    }
   }
 }
 
